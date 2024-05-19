@@ -1,0 +1,1 @@
+CPU test files are obtained from https://github.com/adtennant/SharpLR35902Tests and fall under the MIT license
