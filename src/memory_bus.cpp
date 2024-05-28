@@ -43,6 +43,15 @@ Memory_Bus::write_u8(u16 address, u8 v)
     {
         printf("[Memory bus] read from not usable area\n");
     }
+    else if (address == DIV)
+    {
+        memory[address] = 0;
+    }
+    else if (address == TAC)
+    {
+        memory[address] = v;
+        timers_set_tac(timers, v);
+    }
     else if (address == 0xFF46)
     {
         dma_transfer(this, static_cast<u16>(v) << 8);
@@ -75,6 +84,8 @@ void
 Memory_Bus::write_u16(u16 address, u16 v) 
 {
     memory[address] = v & 0xFF; memory[address + 1] = (v >> 8) & 0xFF;
+    // write_u8(address, v & 0xFF);
+    // write_u8(address + 1, (v >> 8) & 0xFF);
 }
 
 u16 

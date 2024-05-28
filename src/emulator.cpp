@@ -69,8 +69,11 @@ init_application(int argc, char **argv, App *app)
 
     printf("[Emulator] STEP MODE: %s\n", state->step ? "enabled" : "disabled");
 
+    state->memory_bus.timers = &state->timers;
+
     cpu_init(&state->cpu, &state->memory_bus, false, state->cartridge.old_license_code, state->cartridge.new_license_code);
     ppu_init(&state->ppu, &state->memory_bus);
+    timers_init(&state->timers, &state->memory_bus);
 
     state->tile_window = create_window(TILE_WINDOW_HEIGHT * RESOLUTION_UPSCALE, TILE_WINDOW_WIDTH * RESOLUTION_UPSCALE, "Tile VRAM");
 
@@ -135,7 +138,7 @@ update_application(App *app, i64 delta_time)
     for (i64 i = 0; i < cycles_to_simulate; ++i)
     {
         cpu_cycle(cpu, &gb->memory_bus);
-        timers_cycle(timers);
+        timers_cycle(timers, &gb->memory_bus);
         ppu_cycle(ppu, &gb->memory_bus);
         
     }

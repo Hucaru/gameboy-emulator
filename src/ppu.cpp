@@ -3,24 +3,24 @@
 #include <cstring>
 #include <cstdio>
 
-const u16 OAM_CYCLES = 20 * 4;
-const u16 PIXEL_TRANSFER_CYCLES = 43 * 4;
-const u16 HBLANK_CYCLES = 51 * 4;
-const u16 VBLANK_CYCLES = 114 * 4;
+constexpr u16 OAM_CYCLES = 20 * 4;
+constexpr u16 PIXEL_TRANSFER_CYCLES = 43 * 4;
+constexpr u16 HBLANK_CYCLES = 51 * 4;
+constexpr u16 VBLANK_CYCLES = 114 * 4;
 
-const u16 LCD_CONTROL_REGISTER = 0xFF40;
-const u16 STAT_REGISTER = 0xFF41;
+constexpr u16 LCD_CONTROL_REGISTER = 0xFF40;
+constexpr u16 STAT_REGISTER = 0xFF41;
 
 // Backgroyund viewport Y/X position
-const u16 SCY_REGISTER = 0xFF42;
-const u16 SCX_REGISTER = 0xFF43;
+constexpr u16 SCY_REGISTER = 0xFF42;
+constexpr u16 SCX_REGISTER = 0xFF43;
 
-const u16 LY_REGISTER = 0xFF44;
-const u16 LYC_REGISTER = 0xFF45;
+constexpr u16 LY_REGISTER = 0xFF44;
+constexpr u16 LYC_REGISTER = 0xFF45;
 
 // Window Y/X position +7
-const u16 WY_REGISTER = 0xFF4A;
-const u16 WX_REGISTER = 0xFF4B;
+constexpr u16 WY_REGISTER = 0xFF4A;
+constexpr u16 WX_REGISTER = 0xFF4B;
 
 const u16 VRAM_TILE_DATA = 0x8000;
 

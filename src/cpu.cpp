@@ -1,10 +1,10 @@
 #include "emulator.h"
 #include <cstdio>
 
-const i8 ZERO_FLAG_POS = 7;
-const i8 SUBTRACT_FLAG_POS = 6;
-const i8 HALF_CARRY_FLAG_POS = 5;
-const i8 CARRY_FLAG_POS = 4;
+constexpr i8 ZERO_FLAG_POS = 7;
+constexpr i8 SUBTRACT_FLAG_POS = 6;
+constexpr i8 HALF_CARRY_FLAG_POS = 5;
+constexpr i8 CARRY_FLAG_POS = 4;
 
 namespace Register
 {
@@ -15,13 +15,13 @@ namespace Register
 }
 
 u8
-flag_zero(CPU* cpu)
+flag_zero(CPU *cpu)
 {
     return (cpu->registers[Register::F] >> ZERO_FLAG_POS) & 0x01;
 }
 
 void
-set_flag_zero(CPU* cpu, bool v)
+set_flag_zero(CPU *cpu, bool v)
 {
     if (v)
     {
@@ -35,13 +35,13 @@ set_flag_zero(CPU* cpu, bool v)
 }
 
 u8
-flag_subtract(CPU* cpu)
+flag_subtract(CPU *cpu)
 {
     return (cpu->registers[Register::F] >> SUBTRACT_FLAG_POS) & 0x01;
 }
 
 void
-set_flag_subtract(CPU* cpu, bool v)
+set_flag_subtract(CPU *cpu, bool v)
 {
     if (v)
     {
@@ -55,13 +55,13 @@ set_flag_subtract(CPU* cpu, bool v)
 }
 
 u8
-flag_half_carry(CPU* cpu)
+flag_half_carry(CPU *cpu)
 {
     return (cpu->registers[Register::F] >> HALF_CARRY_FLAG_POS) & 0x01;
 }
 
 void
-set_flag_half_carry(CPU* cpu, bool v)
+set_flag_half_carry(CPU *cpu, bool v)
 {
     if (v)
     {
@@ -74,13 +74,13 @@ set_flag_half_carry(CPU* cpu, bool v)
 }
 
 u8
-flag_carry(CPU* cpu)
+flag_carry(CPU *cpu)
 {
     return (cpu->registers[Register::F] >> CARRY_FLAG_POS) & 0x01;
 }
 
 void
-set_flag_carry(CPU* cpu, bool v)
+set_flag_carry(CPU *cpu, bool v)
 {
     if (v)
     {
@@ -94,52 +94,52 @@ set_flag_carry(CPU* cpu, bool v)
 }
 
 u16 
-register_af(CPU* cpu)
+register_af(CPU *cpu)
 {
     return static_cast<u16>(cpu->registers[Register::A]) << 8 | static_cast<u16>(cpu->registers[Register::F]);
 }
 
 void 
-set_register_af(CPU* cpu, u16 val)
+set_register_af(CPU *cpu, u16 val)
 {
     cpu->registers[Register::A] = (val & 0xFF00) >> 8;
     cpu->registers[Register::F] = val & 0xF0; // only interested in the flag bits
 }
 
 u16 
-register_bc(CPU* cpu)
+register_bc(CPU *cpu)
 {
     return static_cast<u16>(cpu->registers[Register::B]) << 8 | static_cast<u16>(cpu->registers[Register::C]);
 }
 
 void 
-set_register_bc(CPU* cpu, u16 val)
+set_register_bc(CPU *cpu, u16 val)
 {
     cpu->registers[Register::B] = (val & 0xFF00) >> 8;
     cpu->registers[Register::C] = val & 0xFF;
 }
 
 u16 
-register_de(CPU* cpu)
+register_de(CPU *cpu)
 {
     return static_cast<u16>(cpu->registers[Register::D]) << 8 | static_cast<u16>(cpu->registers[Register::E]);
 }
 
 void 
-set_register_de(CPU* cpu, u16 val)
+set_register_de(CPU *cpu, u16 val)
 {
     cpu->registers[Register::D] = (val & 0xFF00) >> 8;
     cpu->registers[Register::E] = val & 0xFF;
 }
 
 u16 
-register_hl(CPU* cpu)
+register_hl(CPU *cpu)
 {
     return static_cast<u16>(cpu->registers[Register::H]) << 8 | static_cast<u16>(cpu->registers[Register::L]);
 }
 
 void 
-set_register_hl(CPU* cpu, u16 val)
+set_register_hl(CPU *cpu, u16 val)
 {
     cpu->registers[Register::H] = (val & 0xFF00) >> 8;
     cpu->registers[Register::L] = val & 0xFF;
@@ -419,7 +419,7 @@ void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
     switch (opcode)
     {
         // RLC B ; RLC C ; RLC D ; RLC E ; RLC H ; RLC L ; RLC (HL) ; RLC A
-        case 0x00: 
+        case 0x00:
         case 0x01:
         case 0x02:
         case 0x03:
@@ -459,7 +459,7 @@ void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             break;
         // RL B ; RL C ; RL D ; RL E ; RL H ; RL L ; RL (HL) ; RL A
-        case 0x10: 
+        case 0x10:
         case 0x11:
         case 0x12:
         case 0x13:
@@ -499,7 +499,7 @@ void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             break;
         // SLA B ; SLA C ; SLA D ; SLA E ; SLA H ; SLA L ; SLA (HL) ; SLA A
-        case 0x20: 
+        case 0x20:
         case 0x21:
         case 0x22:
         case 0x23:
@@ -539,7 +539,7 @@ void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             break;
         // SWAP B ; SWAP C ; SWAP D ; SWAP E ; SWAP H ; SWAP L ; SWAP (HL) ; SWAP A
-        case 0x30: 
+        case 0x30:
         case 0x31:
         case 0x32:
         case 0x33:
@@ -579,7 +579,7 @@ void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             break;
         // BIT 0, B ; BIT 0, C ; BIT 0, D ; BIT 0, E ; BIT 0, H ; BIT 0, L ; BIT 0, (HL) ; BIT 0, A
-        case 0x40: 
+        case 0x40:
         case 0x41:
         case 0x42:
         case 0x43:
@@ -597,7 +597,7 @@ void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x4E:
         case 0x4F:
         // BIT 2, B ; BIT 2, C ; BIT 2, D ; BIT 2, E ; BIT 2, H ; BIT 2, L ; BIT 2, (HL) ; BIT 2, A
-        case 0x50: 
+        case 0x50:
         case 0x51:
         case 0x52:
         case 0x53:
@@ -615,7 +615,7 @@ void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x5E:
         case 0x5F:
         // BIT 4, B ; BIT 4, C ; BIT 4, D ; BIT 4, E ; BIT 4, H ; BIT 4, L ; BIT 4, (HL) ; BIT 4, A
-        case 0x60: 
+        case 0x60:
         case 0x61:
         case 0x62:
         case 0x63:
@@ -633,7 +633,7 @@ void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x6E:
         case 0x6F:
         // BIT 6, B ; BIT 6, C ; BIT 6, D ; BIT 6, E ; BIT 6, H ; BIT 6, L ; BIT 6, (HL) ; BIT 6, A
-        case 0x70: 
+        case 0x70:
         case 0x71:
         case 0x72:
         case 0x73:
@@ -662,7 +662,7 @@ void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             break;
         // RES 0, B ; RES 0, C ; RES 0, D ; RES 0, E ; RES 0, H ; RES 0, L ; RES 0, (HL) ; RES 0, A
-        case 0x80: 
+        case 0x80:
         case 0x81:
         case 0x82:
         case 0x83:
@@ -680,7 +680,7 @@ void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x8E:
         case 0x8F:
         // RES 2, B ; RES 2, C ; RES 2, D ; RES 2, E ; RES 2, H ; RES 2, L ; RES 2, (HL) ; RES 2, A
-        case 0x90: 
+        case 0x90:
         case 0x91:
         case 0x92:
         case 0x93:
@@ -698,7 +698,7 @@ void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x9E:
         case 0x9F:
         // RES 4, B ; RES 4, C ; RES 4, D ; RES 4, E ; RES 4, H ; RES 4, L ; RES 4, (HL) ; RES 4, A
-        case 0xA0: 
+        case 0xA0:
         case 0xA1:
         case 0xA2:
         case 0xA3:
@@ -716,7 +716,7 @@ void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0xAE:
         case 0xAF:
         // RES 6, B ; RES 6, C ; RES 6, D ; RES 6, E ; RES 6, H ; RES 6, L ; RES 6, (HL) ; RES 6, A
-        case 0xB0: 
+        case 0xB0:
         case 0xB1:
         case 0xB2:
         case 0xB3:
@@ -745,7 +745,7 @@ void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             break;
         // SET 0, B ; SET 0, C ; SET 0, D ; SET 0, E ; SET 0, H ; SET 0, L ; SET 0, (HL) ; SET 0, A
-        case 0xC0: 
+        case 0xC0:
         case 0xC1:
         case 0xC2:
         case 0xC3:
@@ -763,7 +763,7 @@ void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0xCE:
         case 0xCF:
         // SET 2, B ; SET 2, C ; SET 2, D ; SET 2, E ; SET 2, H ; SET 2, L ; SET 2, (HL) ; SET 2, A
-        case 0xD0: 
+        case 0xD0:
         case 0xD1:
         case 0xD2:
         case 0xD3:
@@ -781,7 +781,7 @@ void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0xDE:
         case 0xDF:
         // SET 4, B ; SET 4, C ; SET 4, D ; SET 4, E ; SET 4, H ; SET 4, L ; SET 4, (HL) ; SET 4, A
-        case 0xE0: 
+        case 0xE0:
         case 0xE1:
         case 0xE2:
         case 0xE3:
@@ -799,7 +799,7 @@ void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0xEE:
         case 0xEF:
         // SET 6, B ; SET 6, C ; SET 6, D ; SET 6, E ; SET 6, H ; SET 6, L ; SET 6, (HL) ; SET 6, A
-        case 0xF0: 
+        case 0xF0:
         case 0xF1:
         case 0xF2:
         case 0xF3:
@@ -1814,7 +1814,6 @@ cpu_cycle(CPU *cpu, Memory_Bus *memory_bus)
 
     u8 opcode = memory_bus->read_u8(cpu->pc++);
     
-
     // The bit instruction layout XXYYYZZZ can be used to help with not writing a case for each individual instruction 
     // as can be see in the following table: https://izik1.github.io/gbops/ when set to a width of 8
     // specific instruction details can be obtained from https://rgbds.gbdev.io/docs/v0.7.0/gbz80.7

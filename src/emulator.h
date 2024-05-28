@@ -24,6 +24,12 @@ const u8 INTERRUPT_TIMER = 0x01 << 2;
 const u8 INTERRUPT_SERIAL = 0x01 << 3;
 const u8 INTERRUPT_JOYPAD = 0x01 << 4;
 
+// TIMERS
+constexpr u16 DIV = 0xFF04;
+constexpr u16 TIMA = 0xFF05;
+constexpr u16 TMA = 0xFF06;
+constexpr u16 TAC = 0xFF07;
+
 struct Cartridge
 {
     char *path;
@@ -31,20 +37,6 @@ struct Cartridge
     char *title;
     u8 old_license_code;
     u8 new_license_code[2];
-};
-
-struct Memory_Bus
-{
-    u8 memory[0xFFFF];
-
-    void write_u8(u16 address, u8 v);
-    u8 read_u8(u16 address);
-
-    void write_i8(u16 address, i8 v);
-    i8 read_i8(u16 address);
-
-    void write_u16(u16 address, u16 v);
-    u16 read_u16(u16 address);
 };
 
 struct PPU
@@ -98,9 +90,6 @@ struct PPU
     bool draw_tile_buffer;
 };
 
-void ppu_init(PPU *ppu, Memory_Bus *memory_bus);
-void ppu_cycle(PPU *ppu, Memory_Bus *memory_bus);
-
 struct CPU
 {
     u8 registers[8]; // order: B C D E H L F A
@@ -110,21 +99,44 @@ struct CPU
     bool interrupts;
 };
 
+struct Timers
+{
+    u32 tima_cycles_remaining;
+    u32 div_cycles_remaining;
+    u8 mode;
+    bool enabled;
+};
+
+struct Memory_Bus
+{
+    u8 memory[0xFFFF];
+
+    void write_u8(u16 address, u8 v);
+    u8 read_u8(u16 address);
+
+    void write_i8(u16 address, i8 v);
+    i8 read_i8(u16 address);
+
+    void write_u16(u16 address, u16 v);
+    u16 read_u16(u16 address);
+
+    Timers *timers;
+};
+
+void timers_cycle(Timers *timers, Memory_Bus *memory_bus);
+void timers_init(Timers *timers, Memory_Bus *memory_bus);
+void timers_set_tac(Timers *timers, u8 mode);
+
 void cpu_init(CPU *cpu, Memory_Bus *memory_bus, bool cgb, u8 old_licence_code, u8 new_license_code[2]);
 void cpu_cycle(CPU *cpu, Memory_Bus *memory_bus);
 
-struct Timers
-{
-    u32 cycles_remaining;
-};
-
-void timers_cycle(Timers *timers);
-void timers_init(Timers *timers);
+void ppu_init(PPU *ppu, Memory_Bus *memory_bus);
+void ppu_cycle(PPU *ppu, Memory_Bus *memory_bus);
 
 struct GameBoy
 {
-    Cartridge cartridge;
     Memory_Bus memory_bus;
+    Cartridge cartridge;
     CPU cpu;
     Timers timers;
     PPU ppu;
