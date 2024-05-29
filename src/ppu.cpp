@@ -136,7 +136,22 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
             {
                 ppu->current_line++;
                 ppu->cycles = 0;
-                ppu->mode = ppu->current_line == 144 ? PPU::Mode::VBLANK : PPU::Mode::OAM;
+
+                if (ppu->current_line == 144)
+                {
+                    ppu->mode = PPU::Mode::VBLANK;
+
+                    u8 interrupts = memory_bus->read_u8(INTERRUPT_FLAG);
+                    interrupts |= INTERRUPT_VBLANK;
+                    memory_bus->write_u8(INTERRUPT_FLAG, interrupts);
+
+                    ppu->draw_game_view = true;
+                }
+                else
+                {
+                    ppu->mode = PPU::Mode::OAM;
+                }
+
                 memory_bus->write_u8(LY_REGISTER, ppu->current_line);
             }
             break;
@@ -150,11 +165,11 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
                 {
                     ppu->current_line = 0;
                     ppu->mode = PPU::Mode::OAM;
-                    ppu->draw_game_view = true;
                 }
 
                 memory_bus->write_u8(LY_REGISTER, ppu->current_line);
             }
+    
             break;
     }
 }

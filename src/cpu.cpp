@@ -1771,6 +1771,52 @@ void handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
     }
 }
 
+bool
+handle_interrupt(CPU *cpu, Memory_Bus *memory_bus)
+{
+    u8 interrupt_flag = memory_bus->read_u8(INTERRUPT_FLAG);
+    u8 interrupt_enable = memory_bus->read_u8(INTERRUPT_ENABLE);
+
+    if (interrupt_flag)
+    {
+        for (u8 i = 0; i < 5; ++i)
+        {
+            u8 bit = 0x01 << i;
+            if ((bit & interrupt_flag) && (bit & interrupt_enable))
+            {
+                cpu->interrupts = false;
+
+                interrupt_flag = ~bit;
+                interrupt_flag &= memory_bus->read_u8(INTERRUPT_FLAG);
+                memory_bus->write_u8(INTERRUPT_FLAG, interrupt_flag);
+
+                stack_push(cpu, memory_bus, cpu->pc);
+
+                switch (bit)
+                {
+                    case INTERRUPT_VBLANK:
+                        cpu->pc = 0x40;
+                        break;
+                    case INTERRUPT_LCD:
+                        cpu->pc = 0x48;
+                        break;
+                    case INTERRUPT_TIMER:
+                        cpu->pc = 0x50;
+                        break;
+                    case INTERRUPT_JOYPAD:
+                        cpu->pc = 0x60;
+                        break;
+                }
+
+                cpu->remaining_cycles = 20; // Note, we add here as we just serviced an opcode
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 void 
 cpu_cycle(CPU *cpu, Memory_Bus *memory_bus)
 {
@@ -1780,36 +1826,12 @@ cpu_cycle(CPU *cpu, Memory_Bus *memory_bus)
         return;
     }
 
-    u8 interrupt_flag = memory_bus->read_u8(INTERRUPT_FLAG);
-    u8 interrupt_enable = memory_bus->read_u8(INTERRUPT_ENABLE);
-
-    if (cpu->interrupts && (interrupt_enable & interrupt_flag))
+    if (cpu->interrupts)
     {
-        // we have an interrupt push pc to stack and jump to interrupt handle code
-        switch (interrupt_flag)
+        if (handle_interrupt(cpu, memory_bus))
         {
-            stack_push(cpu, memory_bus, cpu->pc);
-
-            case INTERRUPT_VBLANK:
-                cpu->pc = 0x40;
-                break;
-            case INTERRUPT_LCD:
-                cpu->pc = 0x48;
-                break;
-            case INTERRUPT_TIMER:
-                cpu->pc = 0x50;
-                break;
-            case INTERRUPT_SERIAL:
-                cpu->pc = 0x58;
-                break;
-            case INTERRUPT_JOYPAD:
-                cpu->pc = 0x60;
-                break;
-            default:
-                printf("[CPU] unknown interrupt: %d\n", interrupt_flag);
+            return;
         }
-        
-        return;
     }
 
     u8 opcode = memory_bus->read_u8(cpu->pc++);

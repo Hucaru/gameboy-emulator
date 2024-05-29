@@ -4,7 +4,6 @@
 void 
 dma_transfer(Memory_Bus *memory_bus, u16 address)
 {
-    printf("[Memory bus] DMA transfer\n");
     for (u8 i = 0; i < 0xA0; ++i)
     {
         memory_bus->write_i8(0xFE00+i, memory_bus->read_u8(address + i));
@@ -16,7 +15,7 @@ Memory_Bus::write_u8(u16 address, u8 v)
 {
     if (address < 0x8000) // ROM bank 00
     {
-        printf("[Memory bus] attempting to write to read only memory %u\n", address);
+        // printf("[Memory bus] attempting to write to read only memory %u\n", address);
     }
     else if (address <= 0x7FFF) // ROM Bank 0..N (cartridge switchable bank)
     {
@@ -41,7 +40,7 @@ Memory_Bus::write_u8(u16 address, u8 v)
     }
     else if(address >= 0xFEA0 && address <= 0xFEFF) // Not usable
     {
-        printf("[Memory bus] read from not usable area\n");
+        // printf("[Memory bus] write to unusable area\n");
     }
     else if (address == DIV)
     {
@@ -71,25 +70,24 @@ Memory_Bus::read_u8(u16 address)
 void 
 Memory_Bus::write_i8(u16 address, i8 v) 
 {
-    memory[address] = static_cast<u8>(v);
+    write_u8(address, static_cast<u8>(v));
 }
 
 i8 
 Memory_Bus::read_i8(u16 address) 
 {
-    return static_cast<i8>(memory[address]);
+    return static_cast<i8>(read_u8(address));
 }
 
 void 
 Memory_Bus::write_u16(u16 address, u16 v) 
 {
-    memory[address] = v & 0xFF; memory[address + 1] = (v >> 8) & 0xFF;
-    // write_u8(address, v & 0xFF);
-    // write_u8(address + 1, (v >> 8) & 0xFF);
+    write_u8(address, v & 0xFF);
+    write_u8(address + 1, (v >> 8) & 0xFF);
 }
 
 u16 
 Memory_Bus::read_u16(u16 address) 
 {
-    return static_cast<u16>(memory[address]) | static_cast<u16>(memory[address + 1]) << 8;
+    return static_cast<u16>(read_u8(address)) | static_cast<u16>(read_u8(address + 1)) << 8;
 }

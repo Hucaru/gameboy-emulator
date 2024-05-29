@@ -3,9 +3,6 @@
 #include "types.h"
 #include "win32.h"
 
-const u16 CARTRIDGE_TITLE = 0x0134;
-const u16 SOUND_CONTROLLER_ON_OF = 0xFF26;
-
 const u8 GAMEBOY_WIDTH = 160;
 const u8 GAMEBOY_HEIGHT = 144;
 const u8 RESOLUTION_UPSCALE = 4;
@@ -15,6 +12,9 @@ const u16 TILE_WINDOW_WIDTH = 192;
 const u16 TILE_WINDOW_HEIGHT = 128;
 
 const u32 BACKGROUND_SIZE = 256 * 256;
+
+const u16 CARTRIDGE_TITLE = 0x0134;
+const u16 SOUND_CONTROLLER_ON_OF = 0xFF26;
 
 const u16 INTERRUPT_FLAG = 0xFF0F;
 const u16 INTERRUPT_ENABLE= 0xFFFF;
