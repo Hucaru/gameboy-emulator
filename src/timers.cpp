@@ -39,10 +39,7 @@ timers_cycle(Timers *timers, Memory_Bus *memory_bus)
             if (memory_bus->read_u8(TIMA) == 0xFF)
             {
                 memory_bus->write_u8(TIMA, memory_bus->read_u8(TMA));
-
-                u8 interrupts = memory_bus->read_u8(INTERRUPT_FLAG);
-                interrupts |= INTERRUPT_TIMER;
-                memory_bus->write_u8(INTERRUPT_FLAG, interrupts);
+                perform_interrupt(memory_bus, INTERRUPT_TIMER);
             }
             else
             {

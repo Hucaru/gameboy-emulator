@@ -140,12 +140,8 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
                 if (ppu->current_line == 144)
                 {
                     ppu->mode = PPU::Mode::VBLANK;
-
-                    u8 interrupts = memory_bus->read_u8(INTERRUPT_FLAG);
-                    interrupts |= INTERRUPT_VBLANK;
-                    memory_bus->write_u8(INTERRUPT_FLAG, interrupts);
-
                     ppu->draw_game_view = true;
+                    perform_interrupt(memory_bus, INTERRUPT_VBLANK);
                 }
                 else
                 {

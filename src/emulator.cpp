@@ -238,3 +238,11 @@ render_application(App *app, u32 *screen_pixels, i32 width, i32 height)
         window_redraw(gb->tile_window);
     }
 }
+
+void
+perform_interrupt(Memory_Bus *memory_bus, u8 flag)
+{
+    u8 interrupts = memory_bus->read_u8(INTERRUPT_FLAG);
+    interrupts |= flag;
+    memory_bus->write_u8(INTERRUPT_FLAG, interrupts);
+}

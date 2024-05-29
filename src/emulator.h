@@ -149,3 +149,4 @@ struct GameBoy
     Window *tile_window;
 };
 
+void perform_interrupt(Memory_Bus *memory_bus, u8 flag);
