@@ -321,7 +321,8 @@ rr(CPU *cpu, u8 val)
     return result;
 }
 
-u8 sla(CPU *cpu, u8 val) 
+u8 
+sla(CPU *cpu, u8 val) 
 {
     u8 result = val << 1;
     
@@ -333,7 +334,8 @@ u8 sla(CPU *cpu, u8 val)
     return result;
 }
 
-u8 sra(CPU *cpu, u8 val)
+u8 
+sra(CPU *cpu, u8 val)
 {
     u8 static_bit = val & 0x80;
     u8 result = (val >> 1) | static_bit;
@@ -346,7 +348,8 @@ u8 sra(CPU *cpu, u8 val)
     return result;
 }
 
-u8 srl(CPU *cpu, u8 val)
+u8 
+srl(CPU *cpu, u8 val)
 {
     u8 result = val >> 1;
 
@@ -358,7 +361,8 @@ u8 srl(CPU *cpu, u8 val)
     return result;
 }
 
-u8 swap(CPU *cpu, u8 val)
+u8 
+swap(CPU *cpu, u8 val)
 {
     u8 high = (val >> 4) & 0x0F ;
     u8 low = (val << 4) & 0xF0;
@@ -372,7 +376,8 @@ u8 swap(CPU *cpu, u8 val)
     return result;
 }
 
-void bit(CPU *cpu, u8 val, u8 bit_field)
+void 
+bit(CPU *cpu, u8 val, u8 bit_field)
 {
     u8 result = (val >> bit_field) & 0x01;
 
@@ -382,13 +387,15 @@ void bit(CPU *cpu, u8 val, u8 bit_field)
     // NOTE: Carry flag is unmodified
 }
 
-u8 res(CPU *cpu, u8 val, u8 bit_field)
+u8 
+res(CPU *cpu, u8 val, u8 bit_field)
 {
     u8 bit = 0xFF ^ (1 << bit_field);
     return val & bit;
 }
 
-u8 set(CPU *cpu, u8 val, u8 bit_field)
+u8 
+set(CPU *cpu, u8 val, u8 bit_field)
 {
     return val | (1 << bit_field);
 }

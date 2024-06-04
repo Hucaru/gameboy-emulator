@@ -51,6 +51,10 @@ Memory_Bus::write_u8(u16 address, u8 v)
         memory[address] = v;
         timers_set_tac(timers, v);
     }
+    else if (address == LY_REGISTER)
+    {
+        memory[address] = 0;
+    }
     else if (address == 0xFF46)
     {
         dma_transfer(this, static_cast<u16>(v) << 8);

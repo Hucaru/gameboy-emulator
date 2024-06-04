@@ -3,6 +3,7 @@
 #include "types.h"
 #include "win32.h"
 
+// General
 const u8 GAMEBOY_WIDTH = 160;
 const u8 GAMEBOY_HEIGHT = 144;
 const u8 RESOLUTION_UPSCALE = 4;
@@ -13,9 +14,6 @@ const u16 TILE_WINDOW_HEIGHT = 128;
 
 const u32 BACKGROUND_SIZE = 256 * 256;
 
-const u16 CARTRIDGE_TITLE = 0x0134;
-const u16 SOUND_CONTROLLER_ON_OF = 0xFF26;
-
 const u16 INTERRUPT_FLAG = 0xFF0F;
 const u16 INTERRUPT_ENABLE= 0xFFFF;
 const u8 INTERRUPT_VBLANK = 0x01;
@@ -24,7 +22,14 @@ const u8 INTERRUPT_TIMER = 0x01 << 2;
 const u8 INTERRUPT_SERIAL = 0x01 << 3;
 const u8 INTERRUPT_JOYPAD = 0x01 << 4;
 
-// TIMERS
+// Cartridge
+const u16 CARTRIDGE_TITLE = 0x0134;
+const u16 SOUND_CONTROLLER_ON_OF = 0xFF26;
+
+// PPU
+constexpr u16 LY_REGISTER = 0xFF44;
+
+// Timers
 constexpr u16 DIV = 0xFF04;
 constexpr u16 TIMA = 0xFF05;
 constexpr u16 TMA = 0xFF06;
@@ -75,7 +80,6 @@ struct PPU
 
     u16 cycles;
     Mode mode;
-    u8 current_line;
     u8 pixels_emitted;
 
     OAM_Entry oam_object[40];
