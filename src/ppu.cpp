@@ -89,9 +89,36 @@ const u16 oam_start_address = 0xFE00;
 void
 set_lcd_status_ppu_mode(Memory_Bus *memory_bus, u8 mode, u8 lcd_status)
 {
+    if ((lcd_status & 0x03) == mode)
+    {
+        return;
+    }
+
     lcd_status &= 252;
     lcd_status |= mode;
     memory_bus->write_u8(LCD_STATUS_REGISTER, lcd_status);
+
+    switch (mode)
+    {
+        case LCD_STATUS_PPU_MODE_0:
+            if (lcd_status & 0x08)
+            {
+                perform_interrupt(memory_bus, INTERRUPT_LCD);
+            }
+            break;
+        case LCD_STATUS_PPU_MODE_1:
+            if (lcd_status & 0x10)
+            {
+                perform_interrupt(memory_bus, INTERRUPT_LCD);
+            }
+            break;
+        case LCD_STATUS_PPU_MODE_2:
+            if (lcd_status & 0x20)
+            {
+                perform_interrupt(memory_bus, INTERRUPT_LCD);
+            }
+            break;
+    }
 }
 
 void 
@@ -115,13 +142,26 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
 
     u8 current_line = memory_bus->memory[LY_REGISTER];
 
+    if (current_line == memory_bus->read_u8(LYC_REGISTER))
+    {
+        lcd_status |= 0x02;
+        memory_bus->write_u8(LCD_STATUS_REGISTER, lcd_status);
+
+        if (lcd_status & 0x40)
+        {
+            perform_interrupt(memory_bus, INTERRUPT_LCD);
+        }
+    }
+    else
+    {
+        lcd_status &= ~0x02;
+        memory_bus->write_u8(LCD_STATUS_REGISTER, lcd_status);
+    }
+
     switch (ppu->mode)
     {
         case PPU::Mode::OAM:
-            if ((lcd_status & 0x03) != LCD_STATUS_PPU_MODE_2)
-            {
-                set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_2, lcd_status);
-            }
+            set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_2, lcd_status);
 
             if (ppu->cycles == OAM_CYCLES)
             {
@@ -131,10 +171,11 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
                 for (u8 i = 0; i < 40; ++i)
                 {
                     // TODO: Need to sub 16 from x and y or does that interfere with calculation below?
-                    ppu->oam_object[i].y_pos = memory_bus->read_u8(oam_start_address);
-                    ppu->oam_object[i].x_pos = memory_bus->read_u8(oam_start_address);
-                    ppu->oam_object[i].tile = memory_bus->read_u8(oam_start_address);
-                    ppu->oam_object[i].properties.byte = memory_bus->read_u8(oam_start_address);
+                    u8 offset = i * 4;
+                    ppu->oam_object[i].y_pos = memory_bus->read_u8(oam_start_address + offset);
+                    ppu->oam_object[i].x_pos = memory_bus->read_u8(oam_start_address + offset + 1);
+                    ppu->oam_object[i].tile = memory_bus->read_u8(oam_start_address + offset + 2);
+                    ppu->oam_object[i].properties.byte = memory_bus->read_u8(oam_start_address  + offset + 3);
 
                     if (count < 10 &&
                         ppu->oam_object[i].x_pos >= 0 &&
@@ -157,10 +198,7 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
             }
             break;
         case PPU::Mode::PIXEL_TRANSFER:
-            if (ppu->pixels_emitted == 0)
-            {
-                set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_3, lcd_status);
-            }
+            set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_3, lcd_status);
 
             // FIFO emit onto buffer
             ppu->pixels_emitted++;
@@ -174,10 +212,7 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
         case PPU::Mode::HBLANK:
             // Pixel transfer can take arbitary cycle amount but we know the maximum cycle count a line takes
             // which is the same amount of cycles vblank takes
-            if ((lcd_status & 0x03) != LCD_STATUS_PPU_MODE_0)
-            {
-                set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_0, lcd_status);
-            }
+            set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_0, lcd_status);
 
             if (ppu->cycles == (HBLANK_CYCLES + PIXEL_TRANSFER_CYCLES + OAM_CYCLES))
             {
@@ -197,10 +232,7 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
             }
             break;
         case PPU::Mode::VBLANK:
-            if ((lcd_status & 0x03) != LCD_STATUS_PPU_MODE_1)
-            {
-                set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_1, lcd_status);
-            }
+            set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_1, lcd_status);
 
             if (ppu->cycles == VBLANK_CYCLES)
             {
