@@ -181,9 +181,9 @@ render_application(App *app, u32 *screen_pixels, i32 width, i32 height)
 {
     GameBoy *gb = reinterpret_cast<GameBoy*>(app->application);
 
-    if (gb->ppu.draw_game_view)
+    if (gb->ppu.draw_frame)
     {
-        gb->ppu.draw_game_view = false;
+        gb->ppu.draw_frame = false;
 
         std::memset(screen_pixels, 0x00FFFFFF, width * height * sizeof(u32));
 
@@ -191,7 +191,7 @@ render_application(App *app, u32 *screen_pixels, i32 width, i32 height)
         {
             for (i32 j = 0 ; j < GAMEBOY_HEIGHT ; ++j)
             {
-                u32 pixel = gb->ppu.background_buffer[i + GAMEBOY_WIDTH * j];
+                u32 pixel = gb->ppu.viewport_buffer[i + GAMEBOY_WIDTH * j];
 
                 i32 adjusted_i = i * RESOLUTION_UPSCALE;
 
