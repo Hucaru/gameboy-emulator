@@ -264,7 +264,6 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
                     }
                 }
 
-                ppu->pixels_emitted = 0;
                 u8 tile_line = current_line % 8;
 
                 ppu->mode = PPU::Mode::PIXEL_TRANSFER;
@@ -274,6 +273,7 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
         {
             set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_3, lcd_status);
 
+            // FIFO start
             u8 scroll_x = memory_bus->read_u8(SCX_REGISTER);
             u8 scroll_y = memory_bus->read_u8(SCY_REGISTER);
             u8 window_x = memory_bus->read_u8(WX_REGISTER) - 7;
@@ -316,52 +316,48 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
 
             u16 tile_row_offset = (pos_y / 8) * 32;
 
-            u8 pos_x = ppu->pixels_emitted + scroll_x;
-
-            if (in_window_y && ppu->pixels_emitted >= window_x)
+            for (u8 pixel = 0; pixel < 160; ++pixel)
             {
-                pos_x = ppu->pixels_emitted - window_x;
+                u8 pos_x = pixel + scroll_x;
+
+                if (in_window_y && pixel >= window_x)
+                {
+                    pos_x = pixel - window_x;
+                }
+
+                u16 tile_column = pos_x / 8;
+                i16 tile_id;
+
+                i16 tile_address = bg_data_start_addr + tile_row_offset+tile_column;
+
+                if (tile_data_signed_id)
+                {
+                    tile_id = memory_bus->read_i8(tile_address);
+                    tile_data_start_addr += (tile_id + 128) * 16;
+                }
+                else
+                {
+                    tile_id = memory_bus->read_u8(tile_address);
+                    tile_data_start_addr += (tile_id * 16);
+                }
+
+                u8 tile_vertical_line = pos_y % 8;
+                tile_vertical_line *= 2; // each vertical line is 2 bytes
+
+                u8 lo = memory_bus->read_u8(tile_data_start_addr + tile_vertical_line);
+                u8 hi = memory_bus->read_u8(tile_data_start_addr + tile_vertical_line + 1);
+
+                u8 colour_bit = pos_x % 8;
+                // Pixel 0 is at bit 7, 1 is at bit 6 and so on. Therefore we need to adjust bit index
+                colour_bit -= 7;
+                colour_bit *= -1;
+
+                // A single pixel colour is determined by the two bits in the two bytes making a 2 bit integer
+                u8 colour_num = (((hi >> colour_bit) & 0x01) << 1) | ((lo >> colour_bit) & 0x01);
+                ppu->frame_buffer[pixel + (current_line * GAMEBOY_WIDTH)] = determine_colour(memory_bus, colour_num, BG_COLOUR_PALETTE_ADDRESS);
             }
 
-            u16 tile_column = pos_x / 8;
-            i16 tile_id;
-
-            i16 tile_address = bg_data_start_addr + tile_row_offset+tile_column;
-
-            if (tile_data_signed_id)
-            {
-                tile_id = memory_bus->read_i8(tile_address);
-                tile_data_start_addr += (tile_id + 128) * 16;
-            }
-            else
-            {
-                tile_id = memory_bus->read_u8(tile_address);
-                tile_data_start_addr += (tile_id * 16);
-            }
-
-            u8 tile_vertical_line = pos_y % 8;
-            tile_vertical_line *= 2; // each vertical line is 2 bytes
-
-            u8 b1 = memory_bus->read_u8(tile_data_start_addr + tile_vertical_line);
-            u8 b2 = memory_bus->read_u8(tile_data_start_addr + tile_vertical_line + 1);
-
-            u8 colour_bit = pos_x % 8;
-            // Pixel 0 is at bit 7, 1 is at bit 6 and so on. Therefore we need to adjust bit index
-            colour_bit -= 7;
-            colour_bit *= -1;
-
-            // A single pixel colour is determined by the two bits in the two bytes making a 2 bit integer
-            u8 colour_num = (((b2 >> colour_bit) & 0x01) << 1) | ((b1 >> colour_bit) & 0x01);
-            ppu->viewport_buffer[ppu->pixels_emitted + (current_line * GAMEBOY_WIDTH)] = determine_colour(memory_bus, colour_num, BG_COLOUR_PALETTE_ADDRESS);
-
-            // FIFO emit onto buffer
-            ppu->pixels_emitted++;
-
-            if (ppu->pixels_emitted == 160)
-            {
-                ppu->mode = PPU::Mode::HBLANK;
-                ppu->pixels_emitted = 0;
-            }
+            ppu->mode = PPU::Mode::HBLANK;
         } break;
         case PPU::Mode::HBLANK:
             // Pixel transfer can take arbitary cycle amount but we know the maximum cycle count a line takes
@@ -374,7 +370,11 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
                 {
                     ppu->mode = PPU::Mode::VBLANK;
                     perform_interrupt(memory_bus, INTERRUPT_VBLANK);
+                    
                     ppu->draw_frame = true;
+
+                    draw_vram_tiles(ppu, memory_bus);
+                    ppu->draw_tile_buffer = true;
                 }
                 else
                 {
@@ -394,9 +394,6 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
                 {
                     memory_bus->memory[LY_REGISTER] = 0;
                     ppu->mode = PPU::Mode::OAM;
-
-                    draw_vram_tiles(ppu, memory_bus);
-                    ppu->draw_tile_buffer = true;
                 }
                 else
                 {

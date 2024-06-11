@@ -76,7 +76,7 @@ init_application(int argc, char **argv, App *app)
     ppu_init(&state->ppu, &state->memory_bus);
     
 
-    state->tile_window = create_window(TILE_WINDOW_HEIGHT * RESOLUTION_UPSCALE, TILE_WINDOW_WIDTH * RESOLUTION_UPSCALE, "Tile VRAM");
+    state->tile_window = create_window(TILE_WINDOW_HEIGHT * RESOLUTION_UPSCALE, TILE_WINDOW_WIDTH * RESOLUTION_UPSCALE, "VRAM");
 
     if (!state->tile_window)
     {
@@ -191,7 +191,7 @@ render_application(App *app, u32 *screen_pixels, i32 width, i32 height)
         {
             for (i32 j = 0 ; j < GAMEBOY_HEIGHT ; ++j)
             {
-                u32 pixel = gb->ppu.viewport_buffer[i + GAMEBOY_WIDTH * j];
+                u32 pixel = gb->ppu.frame_buffer[i + GAMEBOY_WIDTH * j];
 
                 i32 adjusted_i = i * RESOLUTION_UPSCALE;
 

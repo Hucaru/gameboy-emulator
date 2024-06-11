@@ -80,16 +80,14 @@ struct PPU
 
     u16 cycles;
     Mode mode;
-    u8 pixels_emitted;
 
     OAM_Entry oam_object[40];
     bool valid_oam_objects[40];
 
     u32 tile_buffer[TILE_WINDOW_WIDTH * TILE_WINDOW_HEIGHT];
     u32 background_buffer[BACKGROUND_SIZE];
-    u32 viewport_top_left_offset;
     
-    u32 viewport_buffer[GAMEBOY_WIDTH * GAMEBOY_HEIGHT];
+    u32 frame_buffer[GAMEBOY_WIDTH * GAMEBOY_HEIGHT];
 
     bool draw_frame;
     bool draw_tile_buffer;
