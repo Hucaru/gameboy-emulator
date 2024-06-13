@@ -101,12 +101,12 @@ bg_window_tile_data_start_address(Memory_Bus *memory_bus, bool *signed_identifie
 {
     if (memory_bus->read_u8(LCD_CONTROL_REGISTER) & 0x10)
     {
-        *signed_identifiers = true;
+        *signed_identifiers = false;
         return 0x8000;
     }
     else
     {
-        *signed_identifiers = false;
+        *signed_identifiers = true;
         return 0x8800;
     }
 }
@@ -143,12 +143,15 @@ draw_vram_tiles(PPU *ppu, Memory_Bus *memory_bus)
             {
                 u16 stride = (TILE_WINDOW_WIDTH * (tile_y / 2)) + (TILE_WINDOW_WIDTH * row * 8);
 
-                u8 hi = memory_bus->read_u8(start_address + (tile * 16) + tile_y);
-                u8 lo = memory_bus->read_u8(start_address + (tile * 16) + tile_y + 1);
+                u8 hi_byte = memory_bus->read_u8(start_address + (tile * 16) + tile_y);
+                u8 lo_byte = memory_bus->read_u8(start_address + (tile * 16) + tile_y + 1);
 
                 for (i8 bit = 7; bit >= 0; --bit)
                 {
-                    u8 index = !!(hi & (1 << bit) << 1) | !!(lo & (1 << bit));
+                    u8 hi = (hi_byte >> bit) & 0x01;
+                    u8 lo = (lo_byte >> bit) & 0x01;
+                    u8 index = (hi << 1) | lo;
+
                     ppu->tile_buffer[(col * 8) + bit + stride] = pallet_colours[index];
                     
                 }
@@ -289,7 +292,7 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
                 }
             }
 
-            bool tile_data_signed_id = false;
+            bool tile_data_signed_id;
             u16 tile_data_start_addr = bg_window_tile_data_start_address(memory_bus, &tile_data_signed_id);
 
             u16 bg_data_start_addr = 0;
@@ -311,41 +314,42 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
             }
             else
             {
-                pos_y = scroll_y + current_line;
+                pos_y = current_line + scroll_y;
             }
 
-            u16 tile_row_offset = (pos_y / 8) * 32;
+            u16 tile_row = static_cast<u8>(pos_y / 8) * 32;
 
             for (u8 pixel = 0; pixel < 160; ++pixel)
             {
                 u8 pos_x = pixel + scroll_x;
 
-                if (in_window_y && pixel >= window_x)
+                if (in_window_y && (pixel >= window_x))
                 {
                     pos_x = pixel - window_x;
                 }
 
+                // which of the 32 horizontal tiles are we on
                 u16 tile_column = pos_x / 8;
-                i16 tile_id;
+                i16 tile_address = bg_data_start_addr + tile_row + tile_column;
 
-                i16 tile_address = bg_data_start_addr + tile_row_offset+tile_column;
+                u16 tile_data_addr;
 
                 if (tile_data_signed_id)
                 {
-                    tile_id = memory_bus->read_i8(tile_address);
-                    tile_data_start_addr += (tile_id + 128) * 16;
+                    i16 tile_id = memory_bus->read_i8(tile_address);
+                    tile_data_addr = tile_data_start_addr + ((tile_id + 128) * 16);
                 }
                 else
                 {
-                    tile_id = memory_bus->read_u8(tile_address);
-                    tile_data_start_addr += (tile_id * 16);
+                    i16 tile_id = memory_bus->read_u8(tile_address);
+                    tile_data_addr = tile_data_start_addr + (tile_id * 16);
                 }
 
                 u8 tile_vertical_line = pos_y % 8;
                 tile_vertical_line *= 2; // each vertical line is 2 bytes
 
-                u8 lo = memory_bus->read_u8(tile_data_start_addr + tile_vertical_line);
-                u8 hi = memory_bus->read_u8(tile_data_start_addr + tile_vertical_line + 1);
+                u8 lo = memory_bus->read_u8(tile_data_addr + tile_vertical_line);
+                u8 hi = memory_bus->read_u8(tile_data_addr + tile_vertical_line + 1);
 
                 u8 colour_bit = pos_x % 8;
                 // Pixel 0 is at bit 7, 1 is at bit 6 and so on. Therefore we need to adjust bit index
@@ -353,7 +357,10 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
                 colour_bit *= -1;
 
                 // A single pixel colour is determined by the two bits in the two bytes making a 2 bit integer
-                u8 colour_num = (((hi >> colour_bit) & 0x01) << 1) | ((lo >> colour_bit) & 0x01);
+                hi = (hi >> colour_bit) & 0x01;
+                lo = (lo >> colour_bit) & 0x01;
+                u8 colour_num = (hi << 1) | lo;
+
                 ppu->frame_buffer[pixel + (current_line * GAMEBOY_WIDTH)] = determine_colour(memory_bus, colour_num, BG_COLOUR_PALETTE_ADDRESS);
             }
 
