@@ -80,6 +80,7 @@ struct PPU
 
     u16 cycles;
     Mode mode;
+    u8 pixel;
 
     OAM_Entry oam_object[40];
     bool valid_oam_objects[40];
