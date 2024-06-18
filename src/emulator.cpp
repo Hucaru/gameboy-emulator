@@ -174,6 +174,70 @@ handle_input(App *app, Input_events *input_events)
             gb->pause = false;
         }
     }
+
+    u8 joypad_state = gb->memory_bus.memory[JOYPAD_REGISTER];
+    joypad_state |= 0x0F; // Set everything to unselected
+
+    if (joypad_state & 0x10) // Directions
+    {
+        if (check_input(input_events, Input_events::CODES::LEFT) == Input_events::STATE::DOWN)
+        {
+            
+        }
+        else if (check_input(input_events, Input_events::CODES::LEFT) == Input_events::STATE::UP)
+        {
+
+        }
+
+        if (check_input(input_events, Input_events::CODES::RIGHT) == Input_events::STATE::DOWN)
+        {
+
+        }
+        else if (check_input(input_events, Input_events::CODES::RIGHT) == Input_events::STATE::UP)
+        {
+            
+        }
+
+        if (check_input(input_events, Input_events::CODES::UP) == Input_events::STATE::DOWN)
+        {
+
+        }
+        else if (check_input(input_events, Input_events::CODES::DOWN) == Input_events::STATE::UP)
+        {
+            
+        }
+    }
+    else if (joypad_state & 0x20) // Buttons
+    {
+        if (check_input(input_events, Input_events::CODES::A) == Input_events::STATE::DOWN)
+        {
+
+        }
+        else if (check_input(input_events, Input_events::CODES::A) == Input_events::STATE::UP)
+        {
+
+        }
+
+        if (check_input(input_events, Input_events::CODES::B) == Input_events::STATE::DOWN)
+        {
+
+        }
+        else if (check_input(input_events, Input_events::CODES::B) == Input_events::STATE::UP)
+        {
+
+        }
+
+        if (check_input(input_events, Input_events::CODES::RETURN) == Input_events::STATE::DOWN)
+        {
+
+        }
+        else if (check_input(input_events, Input_events::CODES::RETURN) == Input_events::STATE::UP)
+        {
+
+        }
+    }
+
+    gb->memory_bus.memory[JOYPAD_REGISTER] = joypad_state;
 }
 
 void 

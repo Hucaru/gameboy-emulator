@@ -32,19 +32,19 @@ constexpr u16 LYC_REGISTER = 0xFF45;
 constexpr u16 WY_REGISTER = 0xFF4A;
 constexpr u16 WX_REGISTER = 0xFF4B;
 
-const u16 VRAM_OBJ_DATA = 0x8000;
+constexpr u16 VRAM_OBJ_DATA = 0x8000;
 
-const u16 OAM_START_ADDRESS = 0xFE00;
+constexpr u16 OAM_START_ADDRESS = 0xFE00;
 
 // Every two bits map to a colour. Bit mapping:
 // 0 - 1 -> id 00
 // 2 - 3 -> id 01
 // 4 - 5 -> id 10
 // 6 - 7 -> id 11
-const u16 BG_COLOUR_PALETTE_ADDRESS = 0xFF47;
-const u16 SPRITE_COLOUR_PALETTE_ADDRESS[] = {0xFF48, 0xFF49};
+constexpr u16 BG_COLOUR_PALETTE_ADDRESS = 0xFF47;
+constexpr u16 SPRITE_COLOUR_PALETTE_ADDRESS[] = {0xFF48, 0xFF49};
 
-const u32 pallet_colours[] = {0x00FFFFFF, 0x00FFAAAA, 0x00FF5555, 0x00000000};
+constexpr u32 pallet_colours[] = {0x00FFFFFF, 0x00FFAAAA, 0x00FF5555, 0x00000000};
 
 u32
 determine_colour(Memory_Bus *memory_bus, u8 num, u16 address)
@@ -107,8 +107,7 @@ bg_window_tile_data_start_address(Memory_Bus *memory_bus, bool *signed_identifie
     else
     {
         *signed_identifiers = true;
-        // return 0x8800;
-        return 0x9000;
+        return 0x8800;
     }
 }
 
@@ -210,9 +209,10 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
         lcd_status &= 252;
         lcd_status |= 0x01;
         memory_bus->write_u8(LCD_STATUS_REGISTER, lcd_status);
-        ppu->mode = PPU::Mode::PIXEL_TRANSFER;
 
+        ppu->mode = PPU::Mode::PIXEL_TRANSFER;
         ppu->cycles = OAM_CYCLES;
+
         return;
     }
 
@@ -338,13 +338,13 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
             if (tile_data_signed_id)
             {
                 tile_id = memory_bus->read_i8(tile_address);
+                tile_data_addr = tile_data_start_addr + ((tile_id + 128) * 16);
             }
             else
             {
                 tile_id = memory_bus->read_u8(tile_address);
-            }
-
-            tile_data_addr = tile_data_start_addr + (tile_id * 16);
+                tile_data_addr = tile_data_start_addr + (tile_id * 16);
+            }            
 
             u8 tile_vertical_line = pos_y % 8;
             tile_vertical_line *= 2; // each vertical line is 2 bytes

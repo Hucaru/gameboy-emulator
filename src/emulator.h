@@ -35,6 +35,9 @@ constexpr u16 TIMA = 0xFF05;
 constexpr u16 TMA = 0xFF06;
 constexpr u16 TAC = 0xFF07;
 
+constexpr u16 DMA_REGISTER = 0xFF46;
+constexpr u16 JOYPAD_REGISTER = 0xFF00;
+
 struct Cartridge
 {
     char *path;

@@ -55,9 +55,13 @@ Memory_Bus::write_u8(u16 address, u8 v)
     {
         memory[address] = 0;
     }
-    else if (address == 0xFF46)
+    else if (address == DMA_REGISTER)
     {
         dma_transfer(this, static_cast<u16>(v) << 8);
+    }
+    else if (address == JOYPAD_REGISTER)
+    {
+        // CPU cannot write to this address
     }
     else
     {

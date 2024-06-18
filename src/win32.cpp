@@ -104,6 +104,26 @@ WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             {
                 window->input_events.event[static_cast<int>(Input_events::CODES::RETURN)] = Input_events::STATE::DOWN;
             }
+            else if (wParam == VK_BACK)
+            {
+                window->input_events.event[static_cast<int>(Input_events::CODES::BACK)] = Input_events::STATE::DOWN;
+            }
+            else if (wParam == VK_LEFT)
+            {
+                window->input_events.event[static_cast<int>(Input_events::CODES::LEFT)] = Input_events::STATE::DOWN;
+            }
+            else if (wParam == VK_RIGHT)
+            {
+                window->input_events.event[static_cast<int>(Input_events::CODES::RIGHT)] = Input_events::STATE::DOWN;
+            }
+            else if (wParam == VK_UP)
+            {
+                window->input_events.event[static_cast<int>(Input_events::CODES::UP)] = Input_events::STATE::DOWN;
+            }
+            else if (wParam == VK_DOWN)
+            {
+                window->input_events.event[static_cast<int>(Input_events::CODES::DOWN)] = Input_events::STATE::DOWN;
+            }
             else if (wParam >= 0x30 && wParam <= 0x39)
             {
                 window->input_events.event[wParam - 0x30] = Input_events::STATE::DOWN;
@@ -129,6 +149,26 @@ WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             else if (wParam == VK_RETURN)
             {
                 window->input_events.event[static_cast<int>(Input_events::CODES::RETURN)] = Input_events::STATE::UP;
+            }
+            else if (wParam == VK_BACK)
+            {
+                window->input_events.event[static_cast<int>(Input_events::CODES::BACK)] = Input_events::STATE::UP;
+            }
+            else if (wParam == VK_LEFT)
+            {
+                window->input_events.event[static_cast<int>(Input_events::CODES::LEFT)] = Input_events::STATE::UP;
+            }
+            else if (wParam == VK_RIGHT)
+            {
+                window->input_events.event[static_cast<int>(Input_events::CODES::RIGHT)] = Input_events::STATE::UP;
+            }
+            else if (wParam == VK_UP)
+            {
+                window->input_events.event[static_cast<int>(Input_events::CODES::UP)] = Input_events::STATE::UP;
+            }
+            else if (wParam == VK_DOWN)
+            {
+                window->input_events.event[static_cast<int>(Input_events::CODES::DOWN)] = Input_events::STATE::UP;
             }
             if (wParam >= 0x30 && wParam <= 0x39)
             {
