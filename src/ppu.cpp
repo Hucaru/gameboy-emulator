@@ -99,7 +99,7 @@ bg_tile_map_start_address(Memory_Bus *memory_bus)
 u16 
 bg_window_tile_data_start_address(Memory_Bus *memory_bus, bool *signed_identifiers)
 {
-    if ((memory_bus->read_u8(LCD_CONTROL_REGISTER) & 0x10))
+    if (memory_bus->read_u8(LCD_CONTROL_REGISTER) & 0x10)
     {
         *signed_identifiers = false;
         return 0x8000;
@@ -107,7 +107,8 @@ bg_window_tile_data_start_address(Memory_Bus *memory_bus, bool *signed_identifie
     else
     {
         *signed_identifiers = true;
-        return 0x8800;
+        // return 0x8800;
+        return 0x9000;
     }
 }
 
@@ -332,17 +333,18 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
             i16 tile_address = bg_data_start_addr + tile_row + tile_column;
 
             u16 tile_data_addr;
+            i16 tile_id;
 
             if (tile_data_signed_id)
             {
-                i16 tile_id = memory_bus->read_i8(tile_address);
-                tile_data_addr = tile_data_start_addr + ((tile_id + 128) * 16);
+                tile_id = memory_bus->read_i8(tile_address);
             }
             else
             {
-                i16 tile_id = memory_bus->read_u8(tile_address);
-                tile_data_addr = tile_data_start_addr + (tile_id * 16);
+                tile_id = memory_bus->read_u8(tile_address);
             }
+
+            tile_data_addr = tile_data_start_addr + (tile_id * 16);
 
             u8 tile_vertical_line = pos_y % 8;
             tile_vertical_line *= 2; // each vertical line is 2 bytes
