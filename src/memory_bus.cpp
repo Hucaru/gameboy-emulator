@@ -61,7 +61,7 @@ Memory_Bus::write_u8(u16 address, u8 v)
     }
     else if (address == JOYPAD_REGISTER)
     {
-        // CPU cannot write to this address
+        memory[address] |= (v & 0x30);
     }
     else
     {
