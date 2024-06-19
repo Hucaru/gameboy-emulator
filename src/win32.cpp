@@ -92,45 +92,47 @@ WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             LONG_PTR ptr = GetWindowLongPtr(hwnd, GWLP_USERDATA);
             Window *window = reinterpret_cast<Window*>(ptr);
 
+            Input_events::STATE button_state = lParam & (1 << 30) ? Input_events::STATE::HELD : Input_events::STATE::DOWN;
+
             if (wParam == VK_ESCAPE)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::ESC)] = Input_events::STATE::DOWN;
+                window->input_events.event[static_cast<int>(Input_events::CODES::ESC)] = button_state;
             }
             else if (wParam == VK_SPACE)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::SPACE)] = Input_events::STATE::DOWN;
+                window->input_events.event[static_cast<int>(Input_events::CODES::SPACE)] = button_state;
             }
             else if (wParam == VK_RETURN)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::RETURN)] = Input_events::STATE::DOWN;
+                window->input_events.event[static_cast<int>(Input_events::CODES::RETURN)] = button_state;
             }
             else if (wParam == VK_BACK)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::BACK)] = Input_events::STATE::DOWN;
+                window->input_events.event[static_cast<int>(Input_events::CODES::BACK)] = button_state;
             }
             else if (wParam == VK_LEFT)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::LEFT)] = Input_events::STATE::DOWN;
+                window->input_events.event[static_cast<int>(Input_events::CODES::LEFT)] = button_state;
             }
             else if (wParam == VK_RIGHT)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::RIGHT)] = Input_events::STATE::DOWN;
+                window->input_events.event[static_cast<int>(Input_events::CODES::RIGHT)] = button_state;
             }
             else if (wParam == VK_UP)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::UP)] = Input_events::STATE::DOWN;
+                window->input_events.event[static_cast<int>(Input_events::CODES::UP)] = button_state;
             }
             else if (wParam == VK_DOWN)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::DOWN)] = Input_events::STATE::DOWN;
+                window->input_events.event[static_cast<int>(Input_events::CODES::DOWN)] = button_state;
             }
             else if (wParam >= 0x30 && wParam <= 0x39)
             {
-                window->input_events.event[wParam - 0x30] = Input_events::STATE::DOWN;
+                window->input_events.event[wParam - 0x30] = button_state;
             }
             else if (wParam >= 0x41 && wParam <= 0x5A)
             {
-                window->input_events.event[wParam - 0x30 - 7] = Input_events::STATE::DOWN;
+                window->input_events.event[wParam - 0x30 - 7] = button_state;
             }
         } break;
         case WM_KEYUP:

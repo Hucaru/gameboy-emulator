@@ -10,8 +10,8 @@ struct Input_events {
 
     enum class STATE : u8 {
         DOWN = 1,
-        UP = 1 << 1,
-        HELD = 1 << 2
+        UP = 2,
+        HELD = 3
     };
 
     STATE event[255];

@@ -147,6 +147,7 @@ struct GameBoy
     CPU cpu;
     Timers timers;
     PPU ppu;
+    u8 joypad_prev_state;
 
     i64 time_since_last_sim;
 

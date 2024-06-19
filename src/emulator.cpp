@@ -180,64 +180,98 @@ handle_input(App *app, Input_events *input_events)
 
     if (joypad_state & 0x10) // Directions
     {
-        if (check_input(input_events, Input_events::CODES::LEFT) == Input_events::STATE::DOWN)
+        Input_events::STATE state = check_input(input_events, Input_events::CODES::RIGHT);
+        if (state == Input_events::STATE::DOWN || state == Input_events::STATE::HELD)
         {
-            
+            joypad_state &= ~(0x01);
+            printf("joypad state: %d\n", joypad_state);
         }
-        else if (check_input(input_events, Input_events::CODES::LEFT) == Input_events::STATE::UP)
+        else if (state == Input_events::STATE::UP)
         {
-
-        }
-
-        if (check_input(input_events, Input_events::CODES::RIGHT) == Input_events::STATE::DOWN)
-        {
-
-        }
-        else if (check_input(input_events, Input_events::CODES::RIGHT) == Input_events::STATE::UP)
-        {
-            
+            joypad_state |= 0x01;
         }
 
-        if (check_input(input_events, Input_events::CODES::UP) == Input_events::STATE::DOWN)
+        state = check_input(input_events, Input_events::CODES::LEFT);
+        if (state == Input_events::STATE::DOWN || state == Input_events::STATE::HELD)
         {
-
+            joypad_state &= ~(0x02);
         }
-        else if (check_input(input_events, Input_events::CODES::DOWN) == Input_events::STATE::UP)
+        else if (state == Input_events::STATE::UP)
         {
-            
+            joypad_state |= 0x02;
+        }
+
+        state = check_input(input_events, Input_events::CODES::UP);
+        if (state == Input_events::STATE::DOWN || state == Input_events::STATE::HELD)
+        {
+            joypad_state &= ~(0x04);
+        }
+        else if (state == Input_events::STATE::UP)
+        {
+            joypad_state |= 0x04;
+        }
+
+        state = check_input(input_events, Input_events::CODES::DOWN);
+        if (state == Input_events::STATE::DOWN || state == Input_events::STATE::HELD)
+        {
+            joypad_state &= ~(0x08);
+        }
+        else if (state == Input_events::STATE::UP)
+        {
+            joypad_state |= 0x08;
         }
     }
-    else if (joypad_state & 0x20) // Buttons
+    
+    if (joypad_state & 0x20) // Buttons
     {
-        if (check_input(input_events, Input_events::CODES::A) == Input_events::STATE::DOWN)
+        Input_events::STATE state = check_input(input_events, Input_events::CODES::A);
+        if (state == Input_events::STATE::DOWN || state == Input_events::STATE::HELD)
         {
-
+            joypad_state &= ~(0x01);
         }
-        else if (check_input(input_events, Input_events::CODES::A) == Input_events::STATE::UP)
+        else if (state == Input_events::STATE::UP)
         {
-
-        }
-
-        if (check_input(input_events, Input_events::CODES::B) == Input_events::STATE::DOWN)
-        {
-
-        }
-        else if (check_input(input_events, Input_events::CODES::B) == Input_events::STATE::UP)
-        {
-
+            joypad_state |= 0x01;
         }
 
-        if (check_input(input_events, Input_events::CODES::RETURN) == Input_events::STATE::DOWN)
+        state = check_input(input_events, Input_events::CODES::B);
+        if (state == Input_events::STATE::DOWN || state == Input_events::STATE::HELD)
         {
-
+            joypad_state &= ~(0x02);
         }
-        else if (check_input(input_events, Input_events::CODES::RETURN) == Input_events::STATE::UP)
+        else if (state == Input_events::STATE::UP)
         {
+            joypad_state |= 0x02;
+        }
 
+        state = check_input(input_events, Input_events::CODES::BACK);
+        if (state == Input_events::STATE::DOWN || state == Input_events::STATE::HELD)
+        {
+            joypad_state &= ~(0x04);
+        }
+        else if (state == Input_events::STATE::UP)
+        {
+            joypad_state |= 0x04;
+        }
+
+        state = check_input(input_events, Input_events::CODES::RETURN);
+        if (state == Input_events::STATE::DOWN || state == Input_events::STATE::HELD)
+        {
+            joypad_state &= ~(0x08);
+        }
+        else if (state == Input_events::STATE::UP)
+        {
+            joypad_state |= 0x08;
         }
     }
 
-    gb->memory_bus.memory[JOYPAD_REGISTER] = joypad_state;
+    if ((joypad_state & 0x0F) != gb->joypad_prev_state)
+    {
+        gb->joypad_prev_state = joypad_state & 0x0F;
+        gb->memory_bus.memory[JOYPAD_REGISTER] = joypad_state;
+
+        perform_interrupt(&gb->memory_bus, INTERRUPT_JOYPAD);
+    }
 }
 
 void 
