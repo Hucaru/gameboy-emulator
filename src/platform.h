@@ -23,11 +23,9 @@ struct Input_events
     };
 
     KEY_STATE keyboard[255];
-    Gamepad gamepads[4];
 };
 
 Input_events::KEY_STATE check_keyboard(Input_events *events, Input_events::KEY_CODE);
-void check_gamepad(Input_events *events, u8 id);
 
 struct Window;
 
@@ -54,4 +52,3 @@ void window_redraw(Window *handle);
 void update_window_title(void *handle, char *title);
 u8 * read_file(char *filename, u64 *file_size);
 void message_box(char *title, char *msg);
-void clear_console();

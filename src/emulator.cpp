@@ -110,7 +110,7 @@ init_application(int argc, char **argv, App *app)
 }
 
 const i64 dmg_cycle_time_ns = 238;
-const i64 simulation_period = 1.6e+7; // 16 ms
+const i64 simulation_period = 1.6e+7 / 2; // 16 ms
 
 void
 update_application(App *app, i64 delta_time) 

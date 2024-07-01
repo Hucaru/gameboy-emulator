@@ -1,7 +1,6 @@
 #include "platform.h"
 
 #include <windows.h>
-#include <xinput.h>
 
 #include <cstdlib>
 #include <cstdint>
@@ -28,68 +27,6 @@ Input_events::KEY_STATE
 check_keyboard(Input_events *events, Input_events::KEY_CODE code)
 {
     return events->keyboard[static_cast<int>(code)];
-}
-
-void
-check_gamepad(Input_events *events, u8 id)
-{
-    XINPUT_KEYSTROKE stroke = {};
-    DWORD status = XInputGetKeystroke(0, 0, &stroke);
-
-    switch(status)
-    {
-        case ERROR_EMPTY:
-            return;
-        case ERROR_DEVICE_NOT_CONNECTED:
-            return;
-        case ERROR_SUCCESS:
-            printf("%s", stroke.VirtualKey == VK_PAD_A ? " A " : "  " );
-            printf("%s", stroke.VirtualKey == VK_PAD_B ? " B " : "  " );
-            printf("%s", stroke.Flags & XINPUT_KEYSTROKE_KEYDOWN ? " DOWN" : "     ");
-            printf("%s", stroke.Flags & XINPUT_KEYSTROKE_KEYUP ? " UP" : "   ");
-            printf("%s", stroke.Flags & XINPUT_KEYSTROKE_REPEAT ? " REPEAT" : "       ");
-            printf("\n");
-    }
-
-    // XINPUT_STATE state;
-    // ZeroMemory(&state, sizeof(XINPUT_STATE));
-
-    // DWORD result = XInputGetState(id, &state);
-
-    // if(result == ERROR_SUCCESS)
-    // {
-    //     if (state.dwPacketNumber != events->gamepads[i].packet_number)
-    //     {
-    //         events->gamepads[i].packet_number = state.dwPacketNumber;
-            
-    //         float lx = state.Gamepad.sThumbLX;
-    //         float ly = state.Gamepad.sThumbLY;
-
-    //         float magnitude = sqrt(lx*lx+ly*ly);
-
-    //         float normalized_lx = lx / magnitude;
-    //         float normalized_ly = ly / magnitude;
-
-    //         float normalized_magnitude = 0;
-
-    //         if (magnitude > XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE)
-    //         {
-    //             if (magnitude > 32767) 
-    //             {
-    //                 magnitude = 32767;
-    //             }
-
-    //             magnitude -= XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE;
-
-    //             normalized_magnitude = magnitude / (32767 - XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
-    //         }
-    //         else
-    //         {
-    //             magnitude = 0.0;
-    //             normalized_magnitude = 0.0;
-    //         }
-    //     }
-    // }
 }
 
 LRESULT CALLBACK 
@@ -547,23 +484,4 @@ void
 message_box(char *title, char *msg)
 {
     MessageBoxExA(NULL, msg, title, MB_OK, 0);
-}
-
-void
-clear_console()
-{
-    HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
-
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-
-    COORD pos = { 0, 0};
-    DWORD written;
-    unsigned size;
-
-    size = csbi.srWindow.Bottom - csbi.srWindow.Top + 1 * csbi.srWindow.Right - csbi.srWindow.Left + 1;;
-
-    FillConsoleOutputCharacter(console, ' ', size, pos, &written);
-    FillConsoleOutputAttribute(console, 0, size, pos, &written);
-    SetConsoleCursorPosition(console, pos);
 }
