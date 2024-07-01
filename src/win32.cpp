@@ -1,8 +1,12 @@
-#include "win32.h"
+#include "platform.h"
+
 #include <windows.h>
+#include <xinput.h>
+
 #include <cstdlib>
 #include <cstdint>
 #include <cstdio>
+#include <cmath>
 
 struct Frame {
     u32 width;
@@ -11,7 +15,6 @@ struct Frame {
 };
 
 struct Window {
-    // Render
     Frame frame;
     BITMAPINFO frame_bitmap_info;
     HBITMAP frame_bitmap;
@@ -21,20 +24,81 @@ struct Window {
     HWND window_handle;
 };
 
-Input_events::STATE check_input(Input_events *events, Input_events::CODES code)
+Input_events::KEY_STATE
+check_keyboard(Input_events *events, Input_events::KEY_CODE code)
 {
-    return events->event[static_cast<int>(code)];
+    return events->keyboard[static_cast<int>(code)];
+}
+
+void
+check_gamepad(Input_events *events, u8 id)
+{
+    XINPUT_KEYSTROKE stroke = {};
+    DWORD status = XInputGetKeystroke(0, 0, &stroke);
+
+    switch(status)
+    {
+        case ERROR_EMPTY:
+            return;
+        case ERROR_DEVICE_NOT_CONNECTED:
+            return;
+        case ERROR_SUCCESS:
+            printf("%s", stroke.VirtualKey == VK_PAD_A ? " A " : "  " );
+            printf("%s", stroke.VirtualKey == VK_PAD_B ? " B " : "  " );
+            printf("%s", stroke.Flags & XINPUT_KEYSTROKE_KEYDOWN ? " DOWN" : "     ");
+            printf("%s", stroke.Flags & XINPUT_KEYSTROKE_KEYUP ? " UP" : "   ");
+            printf("%s", stroke.Flags & XINPUT_KEYSTROKE_REPEAT ? " REPEAT" : "       ");
+            printf("\n");
+    }
+
+    // XINPUT_STATE state;
+    // ZeroMemory(&state, sizeof(XINPUT_STATE));
+
+    // DWORD result = XInputGetState(id, &state);
+
+    // if(result == ERROR_SUCCESS)
+    // {
+    //     if (state.dwPacketNumber != events->gamepads[i].packet_number)
+    //     {
+    //         events->gamepads[i].packet_number = state.dwPacketNumber;
+            
+    //         float lx = state.Gamepad.sThumbLX;
+    //         float ly = state.Gamepad.sThumbLY;
+
+    //         float magnitude = sqrt(lx*lx+ly*ly);
+
+    //         float normalized_lx = lx / magnitude;
+    //         float normalized_ly = ly / magnitude;
+
+    //         float normalized_magnitude = 0;
+
+    //         if (magnitude > XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE)
+    //         {
+    //             if (magnitude > 32767) 
+    //             {
+    //                 magnitude = 32767;
+    //             }
+
+    //             magnitude -= XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE;
+
+    //             normalized_magnitude = magnitude / (32767 - XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+    //         }
+    //         else
+    //         {
+    //             magnitude = 0.0;
+    //             normalized_magnitude = 0.0;
+    //         }
+    //     }
+    // }
 }
 
 LRESULT CALLBACK 
-WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-    // static Window *window = NULL;
-
+WndProc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) {
     switch(msg)
     {
         case WM_CREATE: 
         {
-            CREATESTRUCT *create_struct = (CREATESTRUCT*)lParam;
+            CREATESTRUCT *create_struct = (CREATESTRUCT*)l_param;
             Window* window = (Window*)create_struct->lpCreateParams;
             SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)window);
         } break;
@@ -68,8 +132,8 @@ WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             LONG_PTR ptr = GetWindowLongPtr(hwnd, GWLP_USERDATA);
             Window *window = reinterpret_cast<Window*>(ptr);
 
-            window->frame_bitmap_info.bmiHeader.biWidth = LOWORD(lParam);
-            window->frame_bitmap_info.bmiHeader.biHeight = HIWORD(lParam);
+            window->frame_bitmap_info.bmiHeader.biWidth = LOWORD(l_param);
+            window->frame_bitmap_info.bmiHeader.biHeight = HIWORD(l_param);
 
             if (window->frame_bitmap) 
             {
@@ -84,55 +148,55 @@ WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             SelectObject(window->frame_device_context, window->frame_bitmap);
 
-            window->frame.width = LOWORD(lParam);
-            window->frame.height = HIWORD(lParam);
+            window->frame.width = LOWORD(l_param);
+            window->frame.height = HIWORD(l_param);
         } break;
         case WM_KEYDOWN:
         {
             LONG_PTR ptr = GetWindowLongPtr(hwnd, GWLP_USERDATA);
             Window *window = reinterpret_cast<Window*>(ptr);
 
-            Input_events::STATE button_state = lParam & (1 << 30) ? Input_events::STATE::HELD : Input_events::STATE::DOWN;
+            Input_events::KEY_STATE button_state = l_param & (1 << 30) ? Input_events::KEY_STATE::HELD : Input_events::KEY_STATE::DOWN;
 
-            if (wParam == VK_ESCAPE)
+            if (w_param == VK_ESCAPE)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::ESC)] = button_state;
+                window->input_events.keyboard[static_cast<int>(Input_events::KEY_CODE::ESC)] = button_state;
             }
-            else if (wParam == VK_SPACE)
+            else if (w_param == VK_SPACE)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::SPACE)] = button_state;
+                window->input_events.keyboard[static_cast<int>(Input_events::KEY_CODE::SPACE)] = button_state;
             }
-            else if (wParam == VK_RETURN)
+            else if (w_param == VK_RETURN)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::RETURN)] = button_state;
+                window->input_events.keyboard[static_cast<int>(Input_events::KEY_CODE::RETURN)] = button_state;
             }
-            else if (wParam == VK_BACK)
+            else if (w_param == VK_BACK)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::BACK)] = button_state;
+                window->input_events.keyboard[static_cast<int>(Input_events::KEY_CODE::BACK)] = button_state;
             }
-            else if (wParam == VK_LEFT)
+            else if (w_param == VK_LEFT)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::LEFT)] = button_state;
+                window->input_events.keyboard[static_cast<int>(Input_events::KEY_CODE::LEFT)] = button_state;
             }
-            else if (wParam == VK_RIGHT)
+            else if (w_param == VK_RIGHT)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::RIGHT)] = button_state;
+                window->input_events.keyboard[static_cast<int>(Input_events::KEY_CODE::RIGHT)] = button_state;
             }
-            else if (wParam == VK_UP)
+            else if (w_param == VK_UP)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::UP)] = button_state;
+                window->input_events.keyboard[static_cast<int>(Input_events::KEY_CODE::UP)] = button_state;
             }
-            else if (wParam == VK_DOWN)
+            else if (w_param == VK_DOWN)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::DOWN)] = button_state;
+                window->input_events.keyboard[static_cast<int>(Input_events::KEY_CODE::DOWN)] = button_state;
             }
-            else if (wParam >= 0x30 && wParam <= 0x39)
+            else if (w_param >= 0x30 && w_param <= 0x39)
             {
-                window->input_events.event[wParam - 0x30] = button_state;
+                window->input_events.keyboard[w_param - 0x30] = button_state;
             }
-            else if (wParam >= 0x41 && wParam <= 0x5A)
+            else if (w_param >= 0x41 && w_param <= 0x5A)
             {
-                window->input_events.event[wParam - 0x30 - 7] = button_state;
+                window->input_events.keyboard[w_param - 0x30 - 7] = button_state;
             }
         } break;
         case WM_KEYUP:
@@ -140,52 +204,50 @@ WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             LONG_PTR ptr = GetWindowLongPtr(hwnd, GWLP_USERDATA);
             Window *window = reinterpret_cast<Window*>(ptr);
 
-            if (wParam == VK_ESCAPE)
+            if (w_param == VK_ESCAPE)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::ESC)] = Input_events::STATE::UP;
+                window->input_events.keyboard[static_cast<int>(Input_events::KEY_CODE::ESC)] = Input_events::KEY_STATE::UP;
             }
-            else if (wParam == VK_SPACE)
+            else if (w_param == VK_SPACE)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::SPACE)] = Input_events::STATE::UP;
+                window->input_events.keyboard[static_cast<int>(Input_events::KEY_CODE::SPACE)] = Input_events::KEY_STATE::UP;
             }
-            else if (wParam == VK_RETURN)
+            else if (w_param == VK_RETURN)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::RETURN)] = Input_events::STATE::UP;
+                window->input_events.keyboard[static_cast<int>(Input_events::KEY_CODE::RETURN)] = Input_events::KEY_STATE::UP;
             }
-            else if (wParam == VK_BACK)
+            else if (w_param == VK_BACK)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::BACK)] = Input_events::STATE::UP;
+                window->input_events.keyboard[static_cast<int>(Input_events::KEY_CODE::BACK)] = Input_events::KEY_STATE::UP;
             }
-            else if (wParam == VK_LEFT)
+            else if (w_param == VK_LEFT)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::LEFT)] = Input_events::STATE::UP;
+                window->input_events.keyboard[static_cast<int>(Input_events::KEY_CODE::LEFT)] = Input_events::KEY_STATE::UP;
             }
-            else if (wParam == VK_RIGHT)
+            else if (w_param == VK_RIGHT)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::RIGHT)] = Input_events::STATE::UP;
+                window->input_events.keyboard[static_cast<int>(Input_events::KEY_CODE::RIGHT)] = Input_events::KEY_STATE::UP;
             }
-            else if (wParam == VK_UP)
+            else if (w_param == VK_UP)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::UP)] = Input_events::STATE::UP;
+                window->input_events.keyboard[static_cast<int>(Input_events::KEY_CODE::UP)] = Input_events::KEY_STATE::UP;
             }
-            else if (wParam == VK_DOWN)
+            else if (w_param == VK_DOWN)
             {
-                window->input_events.event[static_cast<int>(Input_events::CODES::DOWN)] = Input_events::STATE::UP;
+                window->input_events.keyboard[static_cast<int>(Input_events::KEY_CODE::DOWN)] = Input_events::KEY_STATE::UP;
             }
-            if (wParam >= 0x30 && wParam <= 0x39)
+            if (w_param >= 0x30 && w_param <= 0x39)
             {
-                window->input_events.event[wParam - 0x30] = Input_events::STATE::UP;
+                window->input_events.keyboard[w_param - 0x30] = Input_events::KEY_STATE::UP;
             }
-            else if (wParam >= 0x41 && wParam <= 0x5A)
+            else if (w_param >= 0x41 && w_param <= 0x5A)
             {
-                window->input_events.event[wParam - 0x30 - 7] = Input_events::STATE::UP;
+                window->input_events.keyboard[w_param - 0x30 - 7] = Input_events::KEY_STATE::UP;
             }
         } break;
-        default:
-            return DefWindowProc(hwnd, msg, wParam, lParam);
     }
 
-    return 0;
+    return DefWindowProc(hwnd, msg, w_param, l_param);
 }
 
 const char window_class[] = "emulatorClass";
@@ -366,7 +428,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
 
         handle_input(&app, &window.input_events);
         update_application(&app, delta_time);
-        ZeroMemory(&window.input_events.event, sizeof(window.input_events.event));
+        ZeroMemory(&window.input_events.keyboard, sizeof(window.input_events.keyboard));
         render_application(&app, window.frame.pixels, window.frame.width, window.frame.height);
 
         QueryPerformanceCounter(&end_time);

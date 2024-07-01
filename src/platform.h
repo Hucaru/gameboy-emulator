@@ -1,27 +1,38 @@
 #pragma once
 #include "types.h"
 
-struct Input_events {
-    enum class CODES : int {
+struct Input_events 
+{
+    enum class KEY_CODE : u8 
+    {
         ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE,
         A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
         ESC, SPACE, RETURN, BACK, LEFT, RIGHT, UP, DOWN
     };
 
-    enum class STATE : u8 {
+    enum class KEY_STATE : u8 
+    {
         DOWN = 1,
         UP = 2,
         HELD = 3
     };
 
-    STATE event[255];
+    struct Gamepad 
+    {
+        u32 packet_number;
+    };
+
+    KEY_STATE keyboard[255];
+    Gamepad gamepads[4];
 };
 
-Input_events::STATE check_input(Input_events *events, Input_events::CODES);
+Input_events::KEY_STATE check_keyboard(Input_events *events, Input_events::KEY_CODE);
+void check_gamepad(Input_events *events, u8 id);
 
 struct Window;
 
-struct App {
+struct App 
+{
     char *window_title;
     Window *window_handle;
     int window_width;
@@ -30,7 +41,7 @@ struct App {
     bool running;
 };
 
-// These are the main window functions
+// These are the application callbacks
 bool init_application(int argc, char **argv, App *app);
 void update_application(App *app, i64 delta_time);
 void handle_input(App *app, Input_events *input_events);
