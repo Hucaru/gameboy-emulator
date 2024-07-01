@@ -207,10 +207,9 @@ set_lcd_status_ppu_mode(Memory_Bus *memory_bus, u8 mode, u8 lcd_status)
     }
 }
 
-u32
-calculate_pixel(PPU *ppu, Memory_Bus *memory_bus, u8 current_line)
+u32 
+calculate_bg_pixel(PPU *ppu, Memory_Bus *memory_bus, u8 current_line)
 {
-    // BG & Window
     u8 scroll_x = memory_bus->read_u8(SCX_REGISTER);
     u8 scroll_y = memory_bus->read_u8(SCY_REGISTER);
     u8 window_x = memory_bus->read_u8(WX_REGISTER) - 7;
@@ -294,12 +293,16 @@ calculate_pixel(PPU *ppu, Memory_Bus *memory_bus, u8 current_line)
     lo = (lo >> colour_bit) & 0x01;
     u8 colour_num = (hi << 1) | lo;
 
-    u32 pixel_colour = determine_colour(memory_bus, colour_num, BG_COLOUR_PALETTE_ADDRESS);
+    return determine_colour(memory_bus, colour_num, BG_COLOUR_PALETTE_ADDRESS);
+}
 
-    // Sprite
-    for (i8 sprite = SPRITE_COUNT - 1; sprite >= 0; --sprite) // We go backwards for pixel conflicts reasons objects first on oam have priority
+u32
+calculate_sprite_pixel(PPU *ppu, Memory_Bus *memory_bus, u8 current_line, u32 pixel)
+{
+    // We go backwards as priority favours first valid
+    for (i8 sprite = SPRITE_COUNT - 1; sprite >= 0; --sprite) 
     {
-        if (!ppu->valid_oam_objects[sprite] )
+        if (!ppu->valid_oam_objects[sprite])
         {
             continue;
         }
@@ -311,7 +314,7 @@ calculate_pixel(PPU *ppu, Memory_Bus *memory_bus, u8 current_line)
 
         u8 line = current_line - ppu->oam_object[sprite].y_pos;
 
-        if (ppu->oam_object[sprite].properties.y_flip)
+        if (!ppu->oam_object[sprite].properties.y_flip)
         {
             line -= obj_height(memory_bus);
             line *= -1;
@@ -320,30 +323,37 @@ calculate_pixel(PPU *ppu, Memory_Bus *memory_bus, u8 current_line)
         line *= 2;
 
         u16 sprite_data_addr = SPRITE_DATA_START_ADDR + (ppu->oam_object[sprite].tile * 16) + line;
-        u8 sprite_lo = memory_bus->read_u8(sprite_data_addr);
-        u8 sprite_hi = memory_bus->read_u8(sprite_data_addr + 1);
+        u8 lo = memory_bus->read_u8(sprite_data_addr);
+        u8 hi = memory_bus->read_u8(sprite_data_addr + 1);
 
         u8 colour_bit = ppu->pixel - ppu->oam_object[sprite].x_pos;
 
-        if (ppu->oam_object[sprite].properties.x_flip)
+        if (!ppu->oam_object[sprite].properties.x_flip)
         {
             colour_bit -= 7;
             colour_bit *= -1;
         }
 
-        sprite_hi = (sprite_hi >> colour_bit) & 0x01;
-        sprite_lo = (sprite_lo >> colour_bit) & 0x01;
-        u8 colour_num = (sprite_hi << 1) | lo;
+        hi = (hi >> colour_bit) & 0x01;
+        lo = (lo >> colour_bit) & 0x01;
+        u8 colour_num = (hi << 1) | lo;
 
         if (colour_num == WHITE)
         {
             continue;
         }
 
-        pixel_colour = determine_colour(memory_bus, colour_num, ppu->oam_object[sprite].properties.pallete_number ? 0xFF49 : 0xFF48);
+        pixel = determine_colour(memory_bus, colour_num, ppu->oam_object[sprite].properties.pallete_number ? 0xFF49 : 0xFF48);
     }
 
-    return pixel_colour;
+    return pixel;
+}
+
+u32
+calculate_pixel(PPU *ppu, Memory_Bus *memory_bus, u8 current_line)
+{
+    u32 bg_window_pixel = calculate_bg_pixel(ppu, memory_bus, current_line);
+    return calculate_sprite_pixel(ppu, memory_bus, current_line, bg_window_pixel);
 }
 
 void 
