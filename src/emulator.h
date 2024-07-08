@@ -62,28 +62,28 @@ struct PPU
         union Sprite_Flags
         {
             u8 byte;
-            // struct
-            // {
-            //     bool bit0 : 1; // CGB only
-            //     bool bit1 : 1; // CGB only
-            //     bool bit2 : 1; // CGB only
-            //     bool bit3 : 1; // CGB only
-            //     bool pallete_number : 1; // 0 means palette addr is 0xFF48 otherwise 0xFF49
-            //     bool x_flip : 1;
-            //     bool y_flip : 1;
-            //     bool obj_bg_priority : 1; // 0 above window and bg, 1 behind bg and window unless either has white colour
-            // };
             struct
             {
-                bool obj_bg_priority : 1; // 0 above window and bg, 1 behind bg and window unless either has white colour
-                bool y_flip : 1;
-                bool x_flip : 1;
-                bool pallete_number : 1; // 0 means palette addr is 0xFF48 otherwise 0xFF49
-                bool bit3 : 1; // CGB only
-                bool bit2 : 1; // CGB only
-                bool bit1 : 1; // CGB only
                 bool bit0 : 1; // CGB only
+                bool bit1 : 1; // CGB only
+                bool bit2 : 1; // CGB only
+                bool bit3 : 1; // CGB only
+                bool pallete_number : 1; // 0 means palette addr is 0xFF48 otherwise 0xFF49
+                bool x_flip : 1;
+                bool y_flip : 1;
+                bool obj_bg_priority : 1; // 0 above window and bg, 1 behind bg and window unless either has white colour
             };
+            // struct
+            // {
+            //     bool obj_bg_priority : 1; // 0 above window and bg, 1 behind bg and window unless either has white colour
+            //     bool y_flip : 1;
+            //     bool x_flip : 1;
+            //     bool pallete_number : 1; // 0 means palette addr is 0xFF48 otherwise 0xFF49
+            //     bool bit3 : 1; // CGB only
+            //     bool bit2 : 1; // CGB only
+            //     bool bit1 : 1; // CGB only
+            //     bool bit0 : 1; // CGB only
+            // };
         };
 
         i8 y_pos;

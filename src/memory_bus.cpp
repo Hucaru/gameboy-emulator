@@ -79,11 +79,12 @@ Memory_Bus::read_u8(u16 address)
     {
         u8 req = memory[address];
 
-        if (req & JOYPAD_BUTTON_REQUEST)
+        // Remember bit set to 1 means not interrested therefore we have to inverse
+        if (req & JOYPAD_BUTTON_REQUEST) // Handle direction
         {
             return (memory[address] & 0xF0) | ((joypad_state >> 4) & 0x0F);
         }
-        else if (req & JOYPAD_DIRECTION_REQUEST)
+        else if (req & JOYPAD_DIRECTION_REQUEST) // Handle buttons
         {
             return (memory[address] & 0xF0) | (joypad_state & 0x0F);
         }
