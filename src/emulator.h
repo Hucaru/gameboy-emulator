@@ -115,6 +115,7 @@ struct CPU
     u16 sp;
     u8 remaining_cycles;
     bool interrupts;
+    bool interrupt_handled;
 };
 
 struct Timers
@@ -139,6 +140,7 @@ struct Memory_Bus
     u16 read_u16(u16 address);
 
     Timers *timers;
+    u8 joypad_state;
 };
 
 void timers_cycle(Timers *timers, Memory_Bus *memory_bus);
@@ -151,6 +153,8 @@ void cpu_cycle(CPU *cpu, Memory_Bus *memory_bus);
 void ppu_init(PPU *ppu, Memory_Bus *memory_bus);
 void ppu_cycle(PPU *ppu, Memory_Bus *memory_bus);
 
+void handle_input_event(Input_events *events, Memory_Bus *memory_bus);
+
 struct GameBoy
 {
     Memory_Bus memory_bus;
@@ -158,7 +162,6 @@ struct GameBoy
     CPU cpu;
     Timers timers;
     PPU ppu;
-    u8 joypad_prev_state;
 
     i64 time_since_last_sim;
 

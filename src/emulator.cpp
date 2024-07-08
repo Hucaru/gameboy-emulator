@@ -70,11 +70,12 @@ init_application(int argc, char **argv, App *app)
     printf("[Emulator] STEP MODE: %s\n", state->step ? "enabled" : "disabled");
 
     state->memory_bus.timers = &state->timers;
+    state->memory_bus.memory[JOYPAD_REGISTER] = 0x3F;
+    state->memory_bus.joypad_state = 0xFF;
 
     cpu_init(&state->cpu, &state->memory_bus, false, state->cartridge.old_license_code, state->cartridge.new_license_code);
     timers_init(&state->timers, &state->memory_bus);
     ppu_init(&state->ppu, &state->memory_bus);
-    
 
     state->tile_window = create_window(TILE_WINDOW_HEIGHT * RESOLUTION_UPSCALE, TILE_WINDOW_WIDTH * RESOLUTION_UPSCALE, "VRAM");
 
@@ -175,102 +176,7 @@ handle_input(App *app, Input_events *input_events)
         }
     }
 
-    u8 joypad_state = gb->memory_bus.memory[JOYPAD_REGISTER];
-    joypad_state |= 0x0F; // Set everything to unselected
-
-    if (joypad_state & 0x10) // Directions
-    {
-        Input_events::KEY_STATE state = check_keyboard(input_events, Input_events::KEY_CODE::RIGHT);
-        if (state == Input_events::KEY_STATE::DOWN || state == Input_events::KEY_STATE::HELD)
-        {
-            joypad_state &= ~(0x01);
-        }
-        else if (state == Input_events::KEY_STATE::UP)
-        {
-            joypad_state |= 0x01;
-        }
-
-        state = check_keyboard(input_events, Input_events::KEY_CODE::LEFT);
-        if (state == Input_events::KEY_STATE::DOWN || state == Input_events::KEY_STATE::HELD)
-        {
-            joypad_state &= ~(0x02);
-        }
-        else if (state == Input_events::KEY_STATE::UP)
-        {
-            joypad_state |= 0x02;
-        }
-
-        state = check_keyboard(input_events, Input_events::KEY_CODE::UP);
-        if (state == Input_events::KEY_STATE::DOWN || state == Input_events::KEY_STATE::HELD)
-        {
-            joypad_state &= ~(0x04);
-        }
-        else if (state == Input_events::KEY_STATE::UP)
-        {
-            joypad_state |= 0x04;
-        }
-
-        state = check_keyboard(input_events, Input_events::KEY_CODE::DOWN);
-        if (state == Input_events::KEY_STATE::DOWN || state == Input_events::KEY_STATE::HELD)
-        {
-            joypad_state &= ~(0x08);
-        }
-        else if (state == Input_events::KEY_STATE::UP)
-        {
-            joypad_state |= 0x08;
-        }
-    }
-    
-    if (joypad_state & 0x20) // Buttons
-    {
-        Input_events::KEY_STATE state = check_keyboard(input_events, Input_events::KEY_CODE::A);
-        if (state == Input_events::KEY_STATE::DOWN || state == Input_events::KEY_STATE::HELD)
-        {
-            joypad_state &= ~(0x01);
-        }
-        else if (state == Input_events::KEY_STATE::UP)
-        {
-            joypad_state |= 0x01;
-        }
-
-        state = check_keyboard(input_events, Input_events::KEY_CODE::B);
-        if (state == Input_events::KEY_STATE::DOWN || state == Input_events::KEY_STATE::HELD)
-        {
-            joypad_state &= ~(0x02);
-        }
-        else if (state == Input_events::KEY_STATE::UP)
-        {
-            joypad_state |= 0x02;
-        }
-
-        state = check_keyboard(input_events, Input_events::KEY_CODE::BACK);
-        if (state == Input_events::KEY_STATE::DOWN || state == Input_events::KEY_STATE::HELD)
-        {
-            joypad_state &= ~(0x04);
-        }
-        else if (state == Input_events::KEY_STATE::UP)
-        {
-            joypad_state |= 0x04;
-        }
-
-        state = check_keyboard(input_events, Input_events::KEY_CODE::RETURN);
-        if (state == Input_events::KEY_STATE::DOWN || state == Input_events::KEY_STATE::HELD)
-        {
-            joypad_state &= ~(0x08);
-        }
-        else if (state == Input_events::KEY_STATE::UP)
-        {
-            joypad_state |= 0x08;
-        }
-    }
-
-    if ((joypad_state & 0x0F) != gb->joypad_prev_state)
-    {
-        gb->joypad_prev_state = joypad_state;
-        gb->memory_bus.memory[JOYPAD_REGISTER] = joypad_state;
-
-        perform_interrupt(&gb->memory_bus, INTERRUPT_JOYPAD);
-    }
+    handle_input_event(input_events, &gb->memory_bus);
 }
 
 void 

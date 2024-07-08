@@ -1,6 +1,9 @@
 #include "emulator.h"
 #include <cstdio>
 
+const u8 JOYPAD_DIRECTION_REQUEST = 0x10;
+const u8 JOYPAD_BUTTON_REQUEST = 0x20;
+
 void 
 dma_transfer(Memory_Bus *memory_bus, u16 address)
 {
@@ -61,7 +64,7 @@ Memory_Bus::write_u8(u16 address, u8 v)
     }
     else if (address == JOYPAD_REGISTER)
     {
-        memory[address] |= (v & 0x30);
+        memory[address] = (v & 0x30) | 0x0F;
     }
     else
     {
@@ -72,7 +75,27 @@ Memory_Bus::write_u8(u16 address, u8 v)
 u8 
 Memory_Bus::read_u8(u16 address) 
 {
-    return memory[address];
+    if (address == JOYPAD_REGISTER)
+    {
+        u8 req = memory[address];
+
+        if (req & JOYPAD_BUTTON_REQUEST)
+        {
+            return (memory[address] & 0xF0) | ((joypad_state >> 4) & 0x0F);
+        }
+        else if (req & JOYPAD_DIRECTION_REQUEST)
+        {
+            return (memory[address] & 0xF0) | (joypad_state & 0x0F);
+        }
+        else
+        {
+            printf("[Memory Bus] Joypad register bad request: %02x\n", req);
+        }
+    }
+    else
+    {
+        return memory[address];
+    }
 }
 
 void 

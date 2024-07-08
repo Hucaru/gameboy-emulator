@@ -1180,8 +1180,15 @@ void handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
     } break;
     case 0x76: // HALT
-        cpu->pc--; // we want to cycle this instruction until the next interupt e.g. vblank
-        cpu->remaining_cycles = 4;
+        if (cpu->interrupt_handled)
+        {
+            cpu->interrupt_handled = false;
+        }
+        else
+        {
+            cpu->pc--; // we want to cycle this instruction until the next interupt e.g. vblank
+            cpu->remaining_cycles = 4;
+        }
         break;
     case 0x80: // ADD
     case 0x81:
@@ -1837,6 +1844,7 @@ cpu_cycle(CPU *cpu, Memory_Bus *memory_bus)
     {
         if (handle_interrupt(cpu, memory_bus))
         {
+            cpu->interrupt_handled = true;
             return;
         }
     }
