@@ -250,7 +250,7 @@ calculate_bg_pixel(PPU *ppu, Memory_Bus *memory_bus, u8 current_line)
         pos_y = current_line + scroll_y;
     }
 
-    u16 tile_row = static_cast<u8>(pos_y / 8) * 32;
+    u16 tile_row = (pos_y / 8) * 32;
     
     u8 pos_x = ppu->pixel + scroll_x;
 
@@ -413,9 +413,8 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
                     ppu->oam_object[sprite].tile = memory_bus->read_u8(OAM_START_ADDRESS + offset + 2);
                     ppu->oam_object[sprite].properties.byte = memory_bus->read_u8(OAM_START_ADDRESS  + offset + 3);
 
-                    if (count < 10 &&
-                        ppu->oam_object[sprite].y_pos <= current_line &&
-                        (ppu->oam_object[sprite].y_pos + sprite_height) > current_line)
+                    u8 y_pos = ppu->oam_object[sprite].y_pos;
+                    if (count < 10 && y_pos <= current_line && (y_pos + sprite_height) > current_line)
                     {
                         ppu->valid_oam_objects[sprite] = true;
                         ++count;
@@ -430,7 +429,6 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
             }
             break;
         case PPU::Mode::PIXEL_TRANSFER:
-        {
             set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_3, lcd_status);
 
             ppu->frame_buffer[ppu->pixel + (current_line * GAMEBOY_WIDTH)] = calculate_pixel(ppu, memory_bus, current_line);
@@ -444,7 +442,7 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
             {
                 ppu->pixel++;
             }
-        } break;
+            break;
         case PPU::Mode::HBLANK:
             // Pixel transfer can take arbitary cycle amount but we know the maximum cycle count a line takes
             // which is the same amount of cycles vblank takes

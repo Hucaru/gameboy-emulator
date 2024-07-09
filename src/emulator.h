@@ -86,8 +86,8 @@ struct PPU
             // };
         };
 
-        i8 y_pos;
-        i8 x_pos;
+        u8 y_pos;
+        u8 x_pos;
         u8 tile;
         Sprite_Flags properties;
     };
@@ -115,7 +115,7 @@ struct CPU
     u16 sp;
     u8 remaining_cycles;
     bool interrupts;
-    bool interrupt_handled;
+    bool halted;
 };
 
 struct Timers

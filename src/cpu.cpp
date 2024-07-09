@@ -1149,7 +1149,7 @@ void handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
     case 0x73:
     case 0x74:
     case 0x75:
-    // case 0x76: // HALT
+    // case 0x76: // HALT implemented below
     case 0x77:
     case 0x78:
     case 0x79:
@@ -1180,15 +1180,8 @@ void handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
     } break;
     case 0x76: // HALT
-        if (cpu->interrupt_handled)
-        {
-            cpu->interrupt_handled = false;
-        }
-        else
-        {
-            cpu->pc--; // we want to cycle this instruction until the next interupt e.g. vblank
-            cpu->remaining_cycles = 4;
-        }
+        cpu->remaining_cycles = 4;
+        cpu->halted = true;
         break;
     case 0x80: // ADD
     case 0x81:
@@ -1844,9 +1837,14 @@ cpu_cycle(CPU *cpu, Memory_Bus *memory_bus)
     {
         if (handle_interrupt(cpu, memory_bus))
         {
-            cpu->interrupt_handled = true;
+            cpu->halted = false;
             return;
         }
+    }
+
+    if (cpu->halted)
+    {
+        return;
     }
 
     u8 opcode = memory_bus->read_u8(cpu->pc++);
@@ -1854,8 +1852,6 @@ cpu_cycle(CPU *cpu, Memory_Bus *memory_bus)
     // The bit instruction layout XXYYYZZZ can be used to help with not writing a case for each individual instruction 
     // as can be see in the following table: https://izik1.github.io/gbops/ when set to a width of 8
     // specific instruction details can be obtained from https://rgbds.gbdev.io/docs/v0.7.0/gbz80.7
-
-    // printf("[CPU] Opcode: 0x%02x\n", opcode);
     handle_opcode(cpu, memory_bus, opcode);
 }
 
