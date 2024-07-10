@@ -404,16 +404,16 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
             {
                 u8 sprite_height = obj_height(memory_bus);
                 u8 count = 0;
-
+                
                 for (u8 sprite = 0; sprite < SPRITE_COUNT; ++sprite)
                 {
                     u8 offset = sprite * 4;
-                    ppu->oam_object[sprite].y_pos = memory_bus->read_u8(OAM_START_ADDRESS + offset) - 16;
-                    ppu->oam_object[sprite].x_pos = memory_bus->read_u8(OAM_START_ADDRESS + offset + 1) - 8;
+                    ppu->oam_object[sprite].y_pos = memory_bus->read_i8(OAM_START_ADDRESS + offset) - 16;
+                    ppu->oam_object[sprite].x_pos = memory_bus->read_i8(OAM_START_ADDRESS + offset + 1) - 8;
                     ppu->oam_object[sprite].tile = memory_bus->read_u8(OAM_START_ADDRESS + offset + 2);
                     ppu->oam_object[sprite].properties.byte = memory_bus->read_u8(OAM_START_ADDRESS  + offset + 3);
 
-                    u8 y_pos = ppu->oam_object[sprite].y_pos;
+                    i8 y_pos = ppu->oam_object[sprite].y_pos;
                     if (count < 10 && y_pos <= current_line && (y_pos + sprite_height) > current_line)
                     {
                         ppu->valid_oam_objects[sprite] = true;

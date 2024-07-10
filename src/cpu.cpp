@@ -850,7 +850,7 @@ void handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         cpu->remaining_cycles = 12;
         break;
     case 0x02: // LD (BC), A
-        memory_bus->write_u16(register_bc(cpu), cpu->registers[Register::A]);
+        memory_bus->write_u8(register_bc(cpu), cpu->registers[Register::A]);
         cpu->remaining_cycles = 8;
         break;
     case 0x03: // INC BC
@@ -902,7 +902,7 @@ void handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         cpu->remaining_cycles = 12;
         break;
     case 0x012: // LD (DE), A
-        memory_bus->write_u16(register_de(cpu), cpu->registers[Register::A]);
+        memory_bus->write_u8(register_de(cpu), cpu->registers[Register::A]);
         cpu->remaining_cycles = 8;
         break;
     case 0x13: // INC DE

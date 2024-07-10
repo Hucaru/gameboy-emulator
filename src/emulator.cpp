@@ -134,14 +134,15 @@ update_application(App *app, i64 delta_time)
     CPU *cpu = &gb->cpu;
     Timers *timers = &gb->timers;
     PPU *ppu = &gb->ppu;
+    Memory_Bus *memory_bus = &gb->memory_bus;
 
     i64 cycles_to_simulate = gb->time_since_last_sim / dmg_cycle_time_ns;
 
     for (i64 i = 0; i < cycles_to_simulate; ++i)
     {
-        cpu_cycle(cpu, &gb->memory_bus);
-        timers_cycle(timers, &gb->memory_bus);
-        ppu_cycle(ppu, &gb->memory_bus);
+        cpu_cycle(cpu, memory_bus);
+        timers_cycle(timers, memory_bus);
+        ppu_cycle(ppu, memory_bus);
     }
 
     gb->time_since_last_sim = 0;
