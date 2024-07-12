@@ -158,15 +158,15 @@ handle_input(App *app, Input_events *input_events)
 {
     GameBoy *gb = reinterpret_cast<GameBoy*>(app->application);
 
-    if (check_keyboard(input_events, Input_events::KEY_CODE::ESC) == Input_events::KEY_STATE::UP)
+    if (keyboard_up(input_events, Input_events::KEY_CODE::ESC))
     {
         app->running = false;
     }
-    else if (check_keyboard(input_events, Input_events::KEY_CODE::SPACE) == Input_events::KEY_STATE::UP)
+    else if (keyboard_up(input_events, Input_events::KEY_CODE::SPACE))
     {
         gb->pause = !gb->pause;
     }
-    else if (check_keyboard(input_events, Input_events::KEY_CODE::S) == Input_events::KEY_STATE::UP)
+    else if (keyboard_up(input_events, Input_events::KEY_CODE::S))
     {
         gb->step = !gb->step;
         printf("[Emulator] STEP MODE: %s\n", gb->step ? "enabled" : "disabled");

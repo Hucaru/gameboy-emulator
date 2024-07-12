@@ -19,82 +19,74 @@ handle_input_event(Input_events *events, Memory_Bus *memory_bus)
     u8 test = 0xFF;
     bool interrupt = false;
     
-    Input_events::KEY_STATE state = check_keyboard(events, Input_events::KEY_CODE::RIGHT);
-    if (state == Input_events::KEY_STATE::DOWN || state == Input_events::KEY_STATE::HELD)
+    if (keyboard_down(events, Input_events::KEY_CODE::RIGHT))
     {
         test &= ~(RIGHT);
     }
-    else if (state == Input_events::KEY_STATE::UP)
+    else if (keyboard_up(events, Input_events::KEY_CODE::RIGHT))
     {
         test |= RIGHT;
     }
 
-    state = check_keyboard(events, Input_events::KEY_CODE::LEFT);
-    if (state == Input_events::KEY_STATE::DOWN)
+    if (keyboard_down(events, Input_events::KEY_CODE::LEFT))
     {
         test &= ~(LEFT);
     }
-    else if (state == Input_events::KEY_STATE::UP)
+    else if (keyboard_up(events, Input_events::KEY_CODE::LEFT))
     {
         test |= LEFT;
     }
 
-    state = check_keyboard(events, Input_events::KEY_CODE::UP);
-    if (state == Input_events::KEY_STATE::DOWN)
+    if (keyboard_down(events, Input_events::KEY_CODE::UP))
     {
         test &= ~(UP);
     }
-    else if (state == Input_events::KEY_STATE::UP)
+    else if (keyboard_up(events, Input_events::KEY_CODE::UP))
     {
         test |= UP;
     }
 
-    state = check_keyboard(events, Input_events::KEY_CODE::DOWN);
-    if (state == Input_events::KEY_STATE::DOWN)
+    if (keyboard_down(events, Input_events::KEY_CODE::DOWN))
     {
         test &= ~(DOWN);
     }
-    else if (state == Input_events::KEY_STATE::UP)
+    else if (keyboard_up(events, Input_events::KEY_CODE::DOWN))
     {
         test |= DOWN;
     }
 
-    state = check_keyboard(events, Input_events::KEY_CODE::A);
-    if (state == Input_events::KEY_STATE::DOWN || state == Input_events::KEY_STATE::HELD)
+    if (keyboard_down(events, Input_events::KEY_CODE::A))
     {
         test &= ~(A);
     }
-    else if (state == Input_events::KEY_STATE::UP)
+    else if (keyboard_up(events, Input_events::KEY_CODE::A))
     {
         test |= A;
     }
 
-    state = check_keyboard(events, Input_events::KEY_CODE::B);
-    if (state == Input_events::KEY_STATE::DOWN)
+    if (keyboard_down(events, Input_events::KEY_CODE::B))
     {
         test &= ~(B);
     }
-    else if (state == Input_events::KEY_STATE::UP)
+    else if (keyboard_up(events, Input_events::KEY_CODE::B))
     {
         test |= B;
     }
 
-    state = check_keyboard(events, Input_events::KEY_CODE::BACK);
-    if (state == Input_events::KEY_STATE::DOWN)
+    if (keyboard_down(events, Input_events::KEY_CODE::BACK))
     {
         test &= ~(SELECT);
     }
-    else if (state == Input_events::KEY_STATE::UP)
+    else if (keyboard_up(events, Input_events::KEY_CODE::BACK))
     {
         test |= SELECT;
     }
 
-    state = check_keyboard(events, Input_events::KEY_CODE::RETURN);
-    if (state == Input_events::KEY_STATE::DOWN)
+    if (keyboard_down(events, Input_events::KEY_CODE::RETURN))
     {
         test &= ~(START);
     }
-    else if (state == Input_events::KEY_STATE::UP)
+    else if (keyboard_up(events, Input_events::KEY_CODE::RETURN))
     {
         test |= START;
     }

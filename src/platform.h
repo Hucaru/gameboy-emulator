@@ -25,7 +25,9 @@ struct Input_events
     KEY_STATE keyboard[255];
 };
 
-Input_events::KEY_STATE check_keyboard(Input_events *events, Input_events::KEY_CODE);
+bool keyboard_down(Input_events *events, Input_events::KEY_CODE code);
+bool keyboard_held(Input_events *events, Input_events::KEY_CODE code);
+bool keyboard_up(Input_events *events, Input_events::KEY_CODE code);
 
 struct Window;
 

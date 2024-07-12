@@ -23,10 +23,22 @@ struct Window {
     HWND window_handle;
 };
 
-Input_events::KEY_STATE
-check_keyboard(Input_events *events, Input_events::KEY_CODE code)
+bool 
+keyboard_down(Input_events *events, Input_events::KEY_CODE code)
 {
-    return events->keyboard[static_cast<int>(code)];
+    return events->keyboard[static_cast<int>(code)] == Input_events::KEY_STATE::DOWN;
+}
+
+bool 
+keyboard_held(Input_events *events, Input_events::KEY_CODE code)
+{
+    return events->keyboard[static_cast<int>(code)] == Input_events::KEY_STATE::HELD;
+}
+
+bool 
+keyboard_up(Input_events *events, Input_events::KEY_CODE code)
+{
+    return events->keyboard[static_cast<int>(code)] == Input_events::KEY_STATE::UP;
 }
 
 LRESULT CALLBACK 

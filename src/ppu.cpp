@@ -307,20 +307,20 @@ calculate_sprite_pixel(PPU *ppu, Memory_Bus *memory_bus, u8 current_line, u32 pi
             continue;
         }
 
-        if (ppu->pixel > ppu->oam_object[sprite].x_pos + obj_height(memory_bus) || ppu->pixel < ppu->oam_object[sprite].x_pos)
+        if (ppu->pixel > ppu->oam_object[sprite].x_pos + 8 || ppu->pixel < ppu->oam_object[sprite].x_pos)
         {
             continue;
         }
 
         u8 line = current_line - ppu->oam_object[sprite].y_pos;
 
-        if (!ppu->oam_object[sprite].properties.y_flip)
+        if (ppu->oam_object[sprite].properties.y_flip)
         {
             line -= obj_height(memory_bus);
             line *= -1;
         }
 
-        line *= 2;
+        line *= 2; // 2 bytes per line
 
         u16 sprite_data_addr = SPRITE_DATA_START_ADDR + (ppu->oam_object[sprite].tile * 16) + line;
         u8 lo = memory_bus->read_u8(sprite_data_addr);
