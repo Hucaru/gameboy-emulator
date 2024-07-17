@@ -1783,41 +1783,38 @@ handle_interrupt(CPU *cpu, Memory_Bus *memory_bus, u8 interrupt_flag)
 {
     u8 interrupt_enable = memory_bus->read_u8(INTERRUPT_ENABLE);
 
-    if (interrupt_flag)
+    for (u8 i = 0; i < 5; ++i)
     {
-        for (u8 i = 0; i < 5; ++i)
+        u8 bit = 0x01 << i;
+        if ((bit & interrupt_flag) && (bit & interrupt_enable))
         {
-            u8 bit = 0x01 << i;
-            if ((bit & interrupt_flag) && (bit & interrupt_enable))
+            cpu->interrupt_master_enable = false;
+            interrupt_flag &= ~bit;
+            memory_bus->write_u8(INTERRUPT_FLAG, interrupt_flag);
+
+            stack_push(cpu, memory_bus, cpu->pc);
+
+            switch (bit)
             {
-                cpu->interrupt_master_enable = false;
-                interrupt_flag &= ~bit;
-                memory_bus->write_u8(INTERRUPT_FLAG, interrupt_flag);
-
-                stack_push(cpu, memory_bus, cpu->pc);
-
-                switch (bit)
-                {
-                    case INTERRUPT_VBLANK:
-                        cpu->pc = 0x40;
-                        break;
-                    case INTERRUPT_LCD:
-                        cpu->pc = 0x48;
-                        break;
-                    case INTERRUPT_TIMER:
-                        cpu->pc = 0x50;
-                        break;
-                    case INTERRUPT_SERIAL:
-                        printf("[CPU] Serial interrupt triggered\n");
-                        break;
-                    case INTERRUPT_JOYPAD:
-                        cpu->pc = 0x60;
-                        break;
-                }
-
-                cpu->remaining_cycles = 20;
-                return true;
+                case INTERRUPT_VBLANK:
+                    cpu->pc = 0x40;
+                    break;
+                case INTERRUPT_LCD:
+                    cpu->pc = 0x48;
+                    break;
+                case INTERRUPT_TIMER:
+                    cpu->pc = 0x50;
+                    break;
+                case INTERRUPT_SERIAL:
+                    printf("[CPU] Serial interrupt triggered\n");
+                    break;
+                case INTERRUPT_JOYPAD:
+                    cpu->pc = 0x60;
+                    break;
             }
+
+            cpu->remaining_cycles = 20;
+            return true;
         }
     }
 
@@ -1840,7 +1837,7 @@ cpu_cycle(CPU *cpu, Memory_Bus *memory_bus)
         cpu->halted = false;
     }
 
-    if (cpu->interrupt_master_enable)
+    if (cpu->interrupt_master_enable && interrupt_flag)
     {
         if (handle_interrupt(cpu, memory_bus, interrupt_flag))
         {
