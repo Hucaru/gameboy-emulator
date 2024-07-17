@@ -1557,7 +1557,7 @@ void handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         break;
     case 0xD9: // RETI
         cpu->pc = stack_pop(cpu, memory_bus);
-        cpu->interrupts = true;
+        cpu->interrupt_master_enable = true;
         cpu->remaining_cycles = 16;
         break;
     case 0xDA: // JP C, u16
@@ -1672,7 +1672,7 @@ void handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         cpu->remaining_cycles = 8;
         break;
     case 0xF3: // DI
-        cpu->interrupts = false;
+        cpu->interrupt_master_enable = false;
         cpu->remaining_cycles = 4;
         break;
     case 0xF4: // unused
@@ -1706,7 +1706,7 @@ void handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         cpu->remaining_cycles = 16;
         break;
     case 0xFB: // EI
-        cpu->interrupts = true;
+        cpu->interrupt_master_enable = true;
         cpu->remaining_cycles = 4;
         break;
     case 0xFC: // unused
@@ -1779,9 +1779,8 @@ void handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
 }
 
 bool
-handle_interrupt(CPU *cpu, Memory_Bus *memory_bus)
+handle_interrupt(CPU *cpu, Memory_Bus *memory_bus, u8 interrupt_flag)
 {
-    u8 interrupt_flag = memory_bus->read_u8(INTERRUPT_FLAG);
     u8 interrupt_enable = memory_bus->read_u8(INTERRUPT_ENABLE);
 
     if (interrupt_flag)
@@ -1791,10 +1790,8 @@ handle_interrupt(CPU *cpu, Memory_Bus *memory_bus)
             u8 bit = 0x01 << i;
             if ((bit & interrupt_flag) && (bit & interrupt_enable))
             {
-                cpu->interrupts = false;
-
-                interrupt_flag = ~bit;
-                interrupt_flag &= memory_bus->read_u8(INTERRUPT_FLAG);
+                cpu->interrupt_master_enable = false;
+                interrupt_flag &= ~bit;
                 memory_bus->write_u8(INTERRUPT_FLAG, interrupt_flag);
 
                 stack_push(cpu, memory_bus, cpu->pc);
@@ -1810,12 +1807,15 @@ handle_interrupt(CPU *cpu, Memory_Bus *memory_bus)
                     case INTERRUPT_TIMER:
                         cpu->pc = 0x50;
                         break;
+                    case INTERRUPT_SERIAL:
+                        printf("[CPU] Serial interrupt triggered\n");
+                        break;
                     case INTERRUPT_JOYPAD:
                         cpu->pc = 0x60;
                         break;
                 }
 
-                cpu->remaining_cycles = 20; // Note, we add here as we just serviced an opcode
+                cpu->remaining_cycles = 20;
                 return true;
             }
         }
@@ -1833,11 +1833,17 @@ cpu_cycle(CPU *cpu, Memory_Bus *memory_bus)
         return;
     }
 
-    if (cpu->interrupts)
+    u8 interrupt_flag = memory_bus->read_u8(INTERRUPT_FLAG);
+
+    if (interrupt_flag)
     {
-        if (handle_interrupt(cpu, memory_bus))
+        cpu->halted = false;
+    }
+
+    if (cpu->interrupt_master_enable)
+    {
+        if (handle_interrupt(cpu, memory_bus, interrupt_flag))
         {
-            cpu->halted = false;
             return;
         }
     }
@@ -1848,10 +1854,6 @@ cpu_cycle(CPU *cpu, Memory_Bus *memory_bus)
     }
 
     u8 opcode = memory_bus->read_u8(cpu->pc++);
-    
-    // The bit instruction layout XXYYYZZZ can be used to help with not writing a case for each individual instruction 
-    // as can be see in the following table: https://izik1.github.io/gbops/ when set to a width of 8
-    // specific instruction details can be obtained from https://rgbds.gbdev.io/docs/v0.7.0/gbz80.7
     handle_opcode(cpu, memory_bus, opcode);
 }
 

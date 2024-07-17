@@ -27,16 +27,17 @@ const u16 CARTRIDGE_TITLE = 0x0134;
 const u16 SOUND_CONTROLLER_ON_OF = 0xFF26;
 
 // PPU
-constexpr u16 LY_REGISTER = 0xFF44;
+const u16 LY_REGISTER = 0xFF44;
 
 // Timers
-constexpr u16 DIV = 0xFF04;
-constexpr u16 TIMA = 0xFF05;
-constexpr u16 TMA = 0xFF06;
-constexpr u16 TAC = 0xFF07;
+const u16 DIV = 0xFF04;
+const u16 TIMA = 0xFF05;
+const u16 TMA = 0xFF06;
+const u16 TAC = 0xFF07;
 
-constexpr u16 DMA_REGISTER = 0xFF46;
-constexpr u16 JOYPAD_REGISTER = 0xFF00;
+const u16 DMA_REGISTER = 0xFF46;
+const u16 JOYPAD_REGISTER = 0xFF00;
+const u16 SERIAL_DATA_TRANSFER = 0xFF01;
 
 struct Cartridge
 {
@@ -103,7 +104,7 @@ struct CPU
     u16 pc;
     u16 sp;
     u8 remaining_cycles;
-    bool interrupts;
+    bool interrupt_master_enable;
     bool halted;
 };
 

@@ -67,6 +67,10 @@ Memory_Bus::write_u8(u16 address, u8 v)
     {
         memory[address] = (v & 0x30) | 0x0F;
     }
+    else if (address == SERIAL_DATA_TRANSFER)
+    {
+        printf("%c", (char)v);
+    }
     else
     {
         memory[address] = v;
