@@ -7,13 +7,15 @@
 #include <cstdio>
 #include <cmath>
 
-struct Frame {
+struct Frame 
+{
     u32 width;
     u32 height;
     u32 *pixels;
 };
 
-struct Window {
+struct Window 
+{
     Frame frame;
     BITMAPINFO frame_bitmap_info;
     HBITMAP frame_bitmap;
@@ -42,7 +44,8 @@ keyboard_up(Input_events *events, Input_events::KEY_CODE code)
 }
 
 LRESULT CALLBACK 
-WndProc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) {
+WndProc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) 
+{
     switch(msg)
     {
         case WM_CREATE: 
