@@ -82,7 +82,7 @@ handle_input_event(Memory_Bus *memory_bus)
     {
         perform_interrupt(memory_bus, INTERRUPT_JOYPAD);
     }
-    else if (memory_bus->joypad.direction && (req & JOYPAD_BUTTON_REQUEST) == 0)
+    else if (memory_bus->joypad.direction && (req & JOYPAD_DIRECTION_REQUEST) == 0)
     {
         perform_interrupt(memory_bus, INTERRUPT_JOYPAD);
     }

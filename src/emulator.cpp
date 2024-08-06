@@ -140,7 +140,7 @@ update_application(App *app, i64 delta_time)
 
     i64 cycles_to_simulate = gb->time_since_last_sim / dmg_cycle_time_ns;
 
-    for (i64 i = 0; i < cycles_to_simulate; ++i)
+    for (i64 i = 0; i < cycles_to_simulate * 2; ++i)
     {
         cpu_cycle(cpu, memory_bus);
         timers_cycle(timers, memory_bus);
