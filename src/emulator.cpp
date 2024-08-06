@@ -71,7 +71,9 @@ init_application(int argc, char **argv, App *app)
 
     state->memory_bus.timers = &state->timers;
     state->memory_bus.memory[JOYPAD_REGISTER] = 0x3F;
-    state->memory_bus.joypad_state = 0xFF;
+    state->memory_bus.joypad.state = 0xFF;
+    state->memory_bus.joypad.button = false;
+    state->memory_bus.joypad.direction = false;
 
     cpu_init(&state->cpu, &state->memory_bus, false, state->cartridge.old_license_code, state->cartridge.new_license_code);
     timers_init(&state->timers, &state->memory_bus);
@@ -143,6 +145,7 @@ update_application(App *app, i64 delta_time)
         cpu_cycle(cpu, memory_bus);
         timers_cycle(timers, memory_bus);
         ppu_cycle(ppu, memory_bus);
+        handle_input_event(memory_bus);
     }
 
     gb->time_since_last_sim = 0;
@@ -177,7 +180,7 @@ handle_input(App *app, Input_events *input_events)
         }
     }
 
-    handle_input_event(input_events, &gb->memory_bus);
+    set_joypad_state(input_events, &gb->memory_bus.joypad);
 }
 
 void 

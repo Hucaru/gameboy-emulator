@@ -39,6 +39,9 @@ const u16 DMA_REGISTER = 0xFF46;
 const u16 JOYPAD_REGISTER = 0xFF00;
 const u16 SERIAL_DATA_TRANSFER = 0xFF01;
 
+const u8 JOYPAD_DIRECTION_REQUEST = 0x10;
+const u8 JOYPAD_BUTTON_REQUEST = 0x20;
+
 struct Cartridge
 {
     char *path;
@@ -116,9 +119,18 @@ struct Timers
     bool enabled;
 };
 
+struct Joypad
+{
+    u8 state;
+    bool button;
+    bool direction;
+};
+
 struct Memory_Bus
 {
-    u8 memory[0xFFFF];
+    u8 memory[0xFFFF + 1]; // Address space goes from 0 - 0xFFFF therefore the size of the memory region is 0xFFFF + 1
+    Joypad joypad;
+    Timers *timers;
 
     void write_u8(u16 address, u8 v);
     u8 read_u8(u16 address);
@@ -128,10 +140,9 @@ struct Memory_Bus
 
     void write_u16(u16 address, u16 v);
     u16 read_u16(u16 address);
-
-    Timers *timers;
-    u8 joypad_state;
 };
+
+void perform_interrupt(Memory_Bus *memory_bus, u8 flag);
 
 void timers_cycle(Timers *timers, Memory_Bus *memory_bus);
 void timers_init(Timers *timers, Memory_Bus *memory_bus);
@@ -143,7 +154,8 @@ void cpu_cycle(CPU *cpu, Memory_Bus *memory_bus);
 void ppu_init(PPU *ppu, Memory_Bus *memory_bus);
 void ppu_cycle(PPU *ppu, Memory_Bus *memory_bus);
 
-void handle_input_event(Input_events *events, Memory_Bus *memory_bus);
+void handle_input_event(Memory_Bus *memory_bus);
+void set_joypad_state(Input_events *events, Joypad *joypad);
 
 struct GameBoy
 {
@@ -160,5 +172,3 @@ struct GameBoy
 
     Window *tile_window;
 };
-
-void perform_interrupt(Memory_Bus *memory_bus, u8 flag);

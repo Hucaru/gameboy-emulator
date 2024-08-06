@@ -13,87 +13,77 @@ const u8 UP = 0x40;
 const u8 START = 0x08;
 const u8 DOWN = 0x80;
 
+
 void
-handle_input_event(Input_events *events, Memory_Bus *memory_bus)
+set_joypad_state(Input_events *events, Joypad *joypad)
 {
-    u8 test = 0xFF;
-    bool interrupt = false;
-    
+    u8 test = 0;
+
     if (keyboard_down(events, Input_events::KEY_CODE::RIGHT))
     {
-        test &= ~(RIGHT);
+        test = RIGHT;
     }
-    else if (keyboard_up(events, Input_events::KEY_CODE::RIGHT))
+    else if (keyboard_down(events, Input_events::KEY_CODE::LEFT))
     {
-        test |= RIGHT;
+        test = LEFT;
     }
-
-    if (keyboard_down(events, Input_events::KEY_CODE::LEFT))
+    else if (keyboard_down(events, Input_events::KEY_CODE::UP))
     {
-        test &= ~(LEFT);
+        test = UP;
     }
-    else if (keyboard_up(events, Input_events::KEY_CODE::LEFT))
+    else if (keyboard_down(events, Input_events::KEY_CODE::DOWN))
     {
-        test |= LEFT;
+        test = DOWN;
     }
-
-    if (keyboard_down(events, Input_events::KEY_CODE::UP))
+    else if (keyboard_down(events, Input_events::KEY_CODE::A))
     {
-        test &= ~(UP);
+        test = A;
     }
-    else if (keyboard_up(events, Input_events::KEY_CODE::UP))
+    else if (keyboard_down(events, Input_events::KEY_CODE::B))
     {
-        test |= UP;
+        test = B;
     }
-
-    if (keyboard_down(events, Input_events::KEY_CODE::DOWN))
+    else if (keyboard_down(events, Input_events::KEY_CODE::BACK))
     {
-        test &= ~(DOWN);
+        test = SELECT;
     }
-    else if (keyboard_up(events, Input_events::KEY_CODE::DOWN))
+    else if (keyboard_down(events, Input_events::KEY_CODE::RETURN))
     {
-        test |= DOWN;
+        test = START;
     }
 
-    if (keyboard_down(events, Input_events::KEY_CODE::A))
+    joypad->button = false;
+    joypad->direction = false;
+
+    // Check if previously the corresponding bit was set to 1
+    u8 prev_state = joypad->state & test;
+
+    if (test > 0 && prev_state)
     {
-        test &= ~(A);
-    }
-    else if (keyboard_up(events, Input_events::KEY_CODE::A))
-    {
-        test |= A;
+        if (test < RIGHT)
+        {
+            joypad->button = true;
+        }
+        else
+        {
+            joypad->direction = true;
+        }
     }
 
-    if (keyboard_down(events, Input_events::KEY_CODE::B))
-    {
-        test &= ~(B);
-    }
-    else if (keyboard_up(events, Input_events::KEY_CODE::B))
-    {
-        test |= B;
-    }
+    joypad->state = 0xFF & (~test);
+}
 
-    if (keyboard_down(events, Input_events::KEY_CODE::BACK))
-    {
-        test &= ~(SELECT);
-    }
-    else if (keyboard_up(events, Input_events::KEY_CODE::BACK))
-    {
-        test |= SELECT;
-    }
+void
+handle_input_event(Memory_Bus *memory_bus)
+{
+    u8 req = memory_bus->memory[JOYPAD_REGISTER];
 
-    if (keyboard_down(events, Input_events::KEY_CODE::RETURN))
+    if (memory_bus->joypad.button && (req & JOYPAD_BUTTON_REQUEST) == 0)
     {
-        test &= ~(START);
+        perform_interrupt(memory_bus, INTERRUPT_JOYPAD);
     }
-    else if (keyboard_up(events, Input_events::KEY_CODE::RETURN))
+    else if (memory_bus->joypad.direction && (req & JOYPAD_BUTTON_REQUEST) == 0)
     {
-        test |= START;
-    }
-
-    if (test != 0xFF)
-    {
-        memory_bus->joypad_state = test;
         perform_interrupt(memory_bus, INTERRUPT_JOYPAD);
     }
 }

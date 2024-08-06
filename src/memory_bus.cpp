@@ -1,10 +1,6 @@
 #include "emulator.h"
 #include <cstdio>
 
-// Bit set to 1 means not interrested therefore swap the values
-const u8 JOYPAD_DIRECTION_REQUEST = 0x20;
-const u8 JOYPAD_BUTTON_REQUEST = 0x10;
-
 void 
 dma_transfer(Memory_Bus *memory_bus, u16 address)
 {
@@ -17,6 +13,12 @@ dma_transfer(Memory_Bus *memory_bus, u16 address)
 void 
 Memory_Bus::write_u8(u16 address, u8 v) 
 {
+    if (address > 0xFFFF)
+    {
+        printf("[Memory bus] invalid write address %d with value: %d\n", address, v);
+        return;
+    }
+
     if (address < 0x8000) // ROM bank 00
     {
         // printf("[Memory bus] attempting to write to read only memory %u\n", address);
@@ -69,7 +71,6 @@ Memory_Bus::write_u8(u16 address, u8 v)
     }
     else if (address == SERIAL_DATA_TRANSFER)
     {
-        printf("%c", (char)v);
     }
     else
     {
@@ -84,17 +85,17 @@ Memory_Bus::read_u8(u16 address)
     {
         u8 req = memory[address];
 
-        if (req & JOYPAD_DIRECTION_REQUEST)
+        if ((req & JOYPAD_DIRECTION_REQUEST) == 0)
         {
-            return (memory[address] & 0xF0) | ((joypad_state >> 4) & 0x0F);
+            return (memory[address] & 0xF0) | ((joypad.state >> 4) & 0x0F);
         }
-        else if (req & JOYPAD_BUTTON_REQUEST)
+        else if ((req & JOYPAD_BUTTON_REQUEST) == 0)
         {
-            return (memory[address] & 0xF0) | (joypad_state & 0x0F);
+            return (memory[address] & 0xF0) | (joypad.state & 0x0F);
         }
         else
         {
-            return memory[address];
+            return memory[address];    
         }
     }
     else
