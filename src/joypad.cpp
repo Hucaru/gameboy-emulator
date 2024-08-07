@@ -1,5 +1,4 @@
 #include "emulator.h"
-#include <cstdio>
 
 const u8 A = 0x01;
 const u8 RIGHT = 0x10;
@@ -12,7 +11,6 @@ const u8 UP = 0x40;
 
 const u8 START = 0x08;
 const u8 DOWN = 0x80;
-
 
 void
 set_joypad_state(Input_events *events, Joypad *joypad)

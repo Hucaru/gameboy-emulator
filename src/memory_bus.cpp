@@ -15,7 +15,7 @@ Memory_Bus::write_u8(u16 address, u8 v)
 {
     if (address > 0xFFFF)
     {
-        printf("[Memory bus] invalid write address %d with value: %d\n", address, v);
+        printf("[Memory bus] invalid write address %d with value %d\n", address, v);
         return;
     }
 

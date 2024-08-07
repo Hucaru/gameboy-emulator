@@ -2,12 +2,8 @@
 #include "platform.h"
 
 #include <cstdlib>
-#include <ctime>
 #include <cstdio>
 #include <cstring>
-
-#include <algorithm>
-#include <iostream>
 
 const u8 nintendo_logo[48] = {
     0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
@@ -15,7 +11,8 @@ const u8 nintendo_logo[48] = {
     0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC, 0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E
 };
 
-bool load_cartridge(Cartridge *cartridge, Memory_Bus *memory_bus)
+bool 
+load_cartridge(Cartridge *cartridge, Memory_Bus *memory_bus)
 {
     printf("[Emulator] Loading ROM: %s\n", cartridge->path);
     u8 *rom = read_file(cartridge->path, &cartridge->size);

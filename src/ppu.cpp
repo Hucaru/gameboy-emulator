@@ -490,7 +490,8 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
     }
 }
 
-void ppu_init(PPU *ppu, Memory_Bus *memory_bus)
+void 
+ppu_init(PPU *ppu, Memory_Bus *memory_bus)
 {
     printf("[PPU] reset state\n");
     ppu->draw_frame = false;
