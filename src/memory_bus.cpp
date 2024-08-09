@@ -19,7 +19,7 @@ Memory_Bus::write_u8(u16 address, u8 v)
         return;
     }
 
-    if (address < 0x8000) // ROM bank 00
+    if (address <= 0x3FFF) // ROM bank 00
     {
         // printf("[Memory bus] attempting to write to read only memory %u\n", address);
     }
@@ -81,7 +81,15 @@ Memory_Bus::write_u8(u16 address, u8 v)
 u8 
 Memory_Bus::read_u8(u16 address) 
 {
-    if (address == JOYPAD_REGISTER)
+    if (address <= 0x3FFF) // ROM bank 00
+    {
+        return cartridge.data[address];
+    }
+    else if (address <= 0x7FFF) // ROM bank  1 -> N
+    {
+        return cartridge.data[address];
+    }
+    else if (address == JOYPAD_REGISTER)
     {
         u8 req = memory[address];
 

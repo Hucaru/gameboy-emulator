@@ -13,6 +13,9 @@ const u16 TILE_WINDOW_WIDTH = 192;
 const u16 TILE_WINDOW_HEIGHT = 128;
 
 const u32 BACKGROUND_SIZE = 256 * 256;
+const u16 BACKGROUND_WINDOW_WIDTH = 256;
+const u16 BACKGROUND_WINDOW_HEIGHT = 256;
+const u8 BACKGROUND_WINDOW_RESOLUTION_SCALE = 2;
 
 const u16 INTERRUPT_FLAG = 0xFF0F;
 const u16 INTERRUPT_ENABLE= 0xFFFF;
@@ -46,7 +49,14 @@ struct Cartridge
 {
     char *path;
     u64 size;
+    u8 *data;
+
     char *title;
+
+    bool mbc1;
+    bool mbc2;
+    u8 current_bank;
+
     u8 old_license_code;
     u8 new_license_code[2];
 };
@@ -99,6 +109,7 @@ struct PPU
 
     bool draw_frame;
     bool draw_tile_buffer;
+    bool draw_background_buffer;
 };
 
 struct CPU
@@ -128,7 +139,8 @@ struct Joypad
 
 struct Memory_Bus
 {
-    u8 memory[0xFFFF + 1]; // Address space goes from 0 - 0xFFFF therefore the size of the memory region is 0xFFFF + 1
+    u8 memory[0xFFFF + 1];
+    Cartridge cartridge;
     Joypad joypad;
     Timers *timers;
 
@@ -160,7 +172,6 @@ void set_joypad_state(Input_events *events, Joypad *joypad);
 struct GameBoy
 {
     Memory_Bus memory_bus;
-    Cartridge cartridge;
     CPU cpu;
     Timers timers;
     PPU ppu;
@@ -171,4 +182,5 @@ struct GameBoy
     bool step;
 
     Window *tile_window;
+    Window *background_window;
 };

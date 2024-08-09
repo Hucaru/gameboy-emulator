@@ -15,32 +15,44 @@ bool
 load_cartridge(Cartridge *cartridge, Memory_Bus *memory_bus)
 {
     printf("[Emulator] Loading ROM: %s\n", cartridge->path);
-    u8 *rom = read_file(cartridge->path, &cartridge->size);
-    std::memcpy(memory_bus->memory, rom, cartridge->size);
+    cartridge->data = read_file(cartridge->path, &cartridge->size);
 
-    if (memory_bus->memory == NULL)
+    if (cartridge->data == NULL)
     {
         message_box("Error", "Error loading rom");
         return false;
     }
 
-    cartridge->title = reinterpret_cast<char*>(memory_bus->memory + 0x134);
-    cartridge->old_license_code = memory_bus->memory[0x014B];
+    cartridge->title = reinterpret_cast<char*>(cartridge->data + 0x134);
+    cartridge->old_license_code = cartridge->data[0x014B];
 
     if (cartridge->old_license_code == 0x33)
     {
-        cartridge->new_license_code[0] = memory_bus->memory[0x0144];
-        cartridge->new_license_code[0] = memory_bus->memory[0x0145];
+        cartridge->new_license_code[0] = cartridge->data[0x0144];
+        cartridge->new_license_code[0] = cartridge->data[0x0145];
     }
-
-    u8 pixels[48][8];
-    memset(&pixels, 0, 384);
    
-    if (memcmp(&nintendo_logo, memory_bus->memory + 0x104, sizeof(nintendo_logo) / 2) != 0)
+    if (memcmp(&nintendo_logo, cartridge->data + 0x104, sizeof(nintendo_logo) / 2) != 0)
     {
         printf("[Emulator] Failed license check (nintendo logo)\n");
-        return false;
     }
+
+    switch (cartridge->data[0x0147])
+    {
+        case 1:
+        case 2:
+        case 3:
+            cartridge->mbc1 = true;
+            break;
+        case 5:
+        case 6:
+            cartridge->mbc2 = true;
+            break;
+        default:
+            break;
+    }
+
+    cartridge->current_bank = 1;
 
     return true;
 }
@@ -55,8 +67,8 @@ init_application(int argc, char **argv, App *app)
 
     GameBoy* state = reinterpret_cast<GameBoy*>(malloc(sizeof(GameBoy)));
     
-    state->cartridge.path = argv[1];
-    if (!load_cartridge(&state->cartridge, &state->memory_bus))
+    state->memory_bus.cartridge.path = argv[1];
+    if (!load_cartridge(&state->memory_bus.cartridge, &state->memory_bus))
     {
         return false;
     }
@@ -72,11 +84,12 @@ init_application(int argc, char **argv, App *app)
     state->memory_bus.joypad.button = false;
     state->memory_bus.joypad.direction = false;
 
-    cpu_init(&state->cpu, &state->memory_bus, false, state->cartridge.old_license_code, state->cartridge.new_license_code);
+    cpu_init(&state->cpu, &state->memory_bus, false, state->memory_bus.cartridge.old_license_code, state->memory_bus.cartridge.new_license_code);
     timers_init(&state->timers, &state->memory_bus);
     ppu_init(&state->ppu, &state->memory_bus);
 
     state->tile_window = create_window(TILE_WINDOW_HEIGHT * RESOLUTION_UPSCALE, TILE_WINDOW_WIDTH * RESOLUTION_UPSCALE, "VRAM");
+    state->background_window = create_window(BACKGROUND_WINDOW_HEIGHT * BACKGROUND_WINDOW_RESOLUTION_SCALE, BACKGROUND_WINDOW_WIDTH * BACKGROUND_WINDOW_RESOLUTION_SCALE, "Background");
 
     if (!state->tile_window)
     {
@@ -98,7 +111,7 @@ init_application(int argc, char **argv, App *app)
 
     for (u8 i = 0; i < 9; ++i)
     {
-        app->window_title[10 + i] = state->cartridge.title[i];
+        app->window_title[10 + i] = state->memory_bus.cartridge.title[i];
     }
     
     app->window_width = GAMEBOY_WIDTH * RESOLUTION_UPSCALE;
@@ -207,9 +220,9 @@ render_application(App *app, u32 *screen_pixels, i32 width, i32 height)
                 }
             }
         }
-    }
 
-    window_redraw(app->window_handle);
+        window_redraw(app->window_handle);
+    }
 
     if (gb->ppu.draw_tile_buffer)
     {
@@ -240,6 +253,11 @@ render_application(App *app, u32 *screen_pixels, i32 width, i32 height)
         }
 
         window_redraw(gb->tile_window);
+    }
+
+    if (gb->ppu.draw_background_buffer)
+    {
+        window_redraw(gb->background_window);
     }
 }
 

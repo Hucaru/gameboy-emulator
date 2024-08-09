@@ -418,7 +418,8 @@ stack_push(CPU *cpu, Memory_Bus *memory_bus, u16 val)
 
 const u8 t_cycle = 5;
 
-void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
+void 
+handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
 {
     u8 src = opcode & 0x07;
     u8 second_val = (opcode >> 3) & 0x07;
@@ -837,7 +838,8 @@ void handle_cb(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
     }
 }
 
-void handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
+void 
+handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
 {
     switch (opcode)
     {
