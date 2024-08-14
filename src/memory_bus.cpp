@@ -10,30 +10,112 @@ dma_transfer(Memory_Bus *memory_bus, u16 address)
     }
 }
 
+void
+handle_banking(Cartridge *cartridge, u16 address, u8 v)
+{
+    if (address < 0x2000)
+    {
+        if (cartridge->mbc1 || cartridge->mbc2)
+        {
+            if (cartridge->mbc2 && ((address >> 4) & 0x01) == 1)
+            {
+                return;
+            }
+
+            u8 test = v & 0x0F;
+
+            if (test == 0x0A)
+            {
+                cartridge->ram_bank_enabled = true;
+            }
+            else
+            {
+                cartridge->ram_bank_enabled = false;
+            }
+
+            printf("[Cartridge] RAM bank changed to: %d\n", cartridge->current_ram_bank);
+        }
+    }
+    else if (address >= 0x2000 && address < 0x4000)
+    {
+        if (cartridge->mbc1 || cartridge->mbc2)
+        {
+            if (cartridge->mbc2)
+            {
+                cartridge->current_rom_bank = v & 0x0F;
+            }
+            else
+            {
+                u8 lower_5 = v & 0x1F;
+                cartridge->current_rom_bank &= 0xE0;
+                cartridge->current_rom_bank |= lower_5;
+            }
+
+            if (cartridge->current_rom_bank == 0)
+            {
+                cartridge->current_rom_bank++;
+            }
+
+            printf("[Cartridge] ROM bank changed to: %d\n", cartridge->current_rom_bank);
+        }
+    }
+    else if (address >= 0x4000 && address < 0x6000)
+    {
+        // NOTE: MBC2 has no ram bank
+        if (cartridge->mbc1)
+        {
+            if (cartridge->rom_bank_enabled)
+            {
+                cartridge->current_rom_bank &= 0x1F;
+                cartridge->current_rom_bank |= (v & 0xE0);
+
+                if (cartridge->current_rom_bank == 0)
+                {
+                    cartridge->current_rom_bank++;
+                }
+
+                printf("[Cartridge] ROM bank changed to: %d\n", cartridge->current_rom_bank);
+            }
+            else
+            {
+                cartridge->current_ram_bank = v & 0x03;
+                printf("[Cartridge] RAM bank changed to: %d\n", cartridge->current_ram_bank);
+            }
+        }
+    }
+    else if (address >= 0x6000 && address < 0x8000)
+    {
+        if (cartridge->mbc1)
+        {
+            u8 data = v & 0x01;
+            cartridge->rom_bank_enabled = (data == 0) ? true : false;
+
+            if (cartridge->rom_bank_enabled)
+            {
+                cartridge->current_ram_bank = 0;
+            }
+        }
+    }
+}
+
 void 
 Memory_Bus::write_u8(u16 address, u8 v) 
 {
-    if (address > 0xFFFF)
+    if (address < 0x8000)
     {
-        printf("[Memory bus] invalid write address %d with value %d\n", address, v);
-        return;
+        handle_banking(&cartridge, address, v);
     }
-
-    if (address <= 0x3FFF) // ROM bank 00
-    {
-        // printf("[Memory bus] attempting to write to read only memory %u\n", address);
-    }
-    else if (address <= 0x7FFF) // ROM Bank 0..N (cartridge switchable bank)
+    else if (address < 0xA000) // VRAM (switchable bank 0-1 in CGB Mode)
     {
         memory[address] = v;
     }
-    else if (address <= 0x9FFF) // VRAM (switchable bank 0-1 in CGB Mode)
+    else if (address < 0xC000)
     {
-        memory[address] = v;
-    }
-    else if (address <= 0xBFFF) // External RAM (in cartridge, switchable bank, if any)
-    {
-        memory[address] = v;
+        if (cartridge.ram_bank_enabled)
+        {
+            u16 bank_address = address - 0xA000;
+            cartridge.ram_banks[bank_address + (cartridge.current_ram_bank * 0x2000)] = v;
+        }
     }
     else if(address <= 0xDFFF) // WRAM Bank 1 (switchable bank 1-7 in CGB Mode)
     {
@@ -81,13 +163,19 @@ Memory_Bus::write_u8(u16 address, u8 v)
 u8 
 Memory_Bus::read_u8(u16 address) 
 {
-    if (address <= 0x3FFF) // ROM bank 00
+    if (address < 0x4000) // ROM bank 00
     {
         return cartridge.data[address];
     }
-    else if (address <= 0x7FFF) // ROM bank  1 -> N
+    else if (address < 0x8000) // ROM bank  1 -> N
     {
-        return cartridge.data[address];
+        u16 bank_address = address - 0x4000;
+        return cartridge.data[bank_address + (cartridge.current_rom_bank * 0x4000)];
+    }
+    else if (address >= 0xA000 && address < 0xC000)
+    {
+        u16 bank_address = address - 0xA000;
+        return cartridge.ram_banks[bank_address + (cartridge.current_ram_bank * 0x2000)];
     }
     else if (address == JOYPAD_REGISTER)
     {
@@ -106,10 +194,8 @@ Memory_Bus::read_u8(u16 address)
             return memory[address];    
         }
     }
-    else
-    {
-        return memory[address];
-    }
+
+    return memory[address];
 }
 
 void 

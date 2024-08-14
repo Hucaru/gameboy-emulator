@@ -12,7 +12,6 @@ const u16 TILE_COUNT = 384;
 const u16 TILE_WINDOW_WIDTH = 192;
 const u16 TILE_WINDOW_HEIGHT = 128;
 
-const u32 BACKGROUND_SIZE = 256 * 256;
 const u16 BACKGROUND_WINDOW_WIDTH = 256;
 const u16 BACKGROUND_WINDOW_HEIGHT = 256;
 const u8 BACKGROUND_WINDOW_RESOLUTION_SCALE = 2;
@@ -55,10 +54,16 @@ struct Cartridge
 
     bool mbc1;
     bool mbc2;
-    u8 current_bank;
+
+    bool rom_bank_enabled;
+    bool ram_bank_enabled;
+    u8 current_rom_bank;
+    u8 current_ram_bank;
 
     u8 old_license_code;
     u8 new_license_code[2];
+
+    u8 ram_banks[4 * 0x2000];
 };
 
 struct PPU
@@ -103,7 +108,7 @@ struct PPU
     bool valid_oam_objects[40];
 
     u32 tile_buffer[TILE_WINDOW_WIDTH * TILE_WINDOW_HEIGHT];
-    u32 background_buffer[BACKGROUND_SIZE];
+    u32 background_buffer[BACKGROUND_WINDOW_WIDTH * BACKGROUND_WINDOW_HEIGHT];
     
     u32 frame_buffer[GAMEBOY_WIDTH * GAMEBOY_HEIGHT];
 

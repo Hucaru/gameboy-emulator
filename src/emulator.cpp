@@ -23,7 +23,13 @@ load_cartridge(Cartridge *cartridge, Memory_Bus *memory_bus)
         return false;
     }
 
-    cartridge->title = reinterpret_cast<char*>(cartridge->data + 0x134);
+    if (cartridge->data[0x0143] == 0xC0)
+    {
+        message_box("Error", "CGB only ROM");
+        return false;
+    }
+
+    cartridge->title = reinterpret_cast<char*>(cartridge->data + 0x0134);
     cartridge->old_license_code = cartridge->data[0x014B];
 
     if (cartridge->old_license_code == 0x33)
@@ -39,20 +45,28 @@ load_cartridge(Cartridge *cartridge, Memory_Bus *memory_bus)
 
     switch (cartridge->data[0x0147])
     {
+        case 0:
+            printf("[Cartridge] ROM only\n");
+            break;
         case 1:
         case 2:
         case 3:
             cartridge->mbc1 = true;
+            printf("[Cartridge] MBC1\n");
             break;
         case 5:
         case 6:
             cartridge->mbc2 = true;
+            printf("[Cartridge] MBC2\n");
             break;
         default:
             break;
     }
 
-    cartridge->current_bank = 1;
+    cartridge->current_rom_bank = 1;
+
+    memset(&cartridge->ram_banks, 0, sizeof(cartridge->ram_banks));
+    cartridge->current_ram_bank = 0;
 
     return true;
 }
@@ -210,6 +224,7 @@ render_application(App *app, u32 *screen_pixels, i32 width, i32 height)
             {
                 u32 pixel = gb->ppu.frame_buffer[i + GAMEBOY_WIDTH * j];
 
+                // Need to flip in x to for the windows buffer
                 i32 adjusted_i = i * RESOLUTION_UPSCALE;
 
                 for (i32 k = 0; k < RESOLUTION_UPSCALE; ++k)
@@ -220,9 +235,9 @@ render_application(App *app, u32 *screen_pixels, i32 width, i32 height)
                 }
             }
         }
-
-        window_redraw(app->window_handle);
     }
+
+    window_redraw(app->window_handle);
 
     if (gb->ppu.draw_tile_buffer)
     {
@@ -238,9 +253,9 @@ render_application(App *app, u32 *screen_pixels, i32 width, i32 height)
         {
             for (i32 j = TILE_WINDOW_HEIGHT - 1; j  >=0 ; --j)
             {
-                // Need to flip in x to for the windows buffer
                 u32 pixel = gb->ppu.tile_buffer[i + TILE_WINDOW_WIDTH * j];
 
+                // Need to flip in x to for the windows buffer
                 i32 adjusted_i = (TILE_WINDOW_WIDTH - 1 - i) * RESOLUTION_UPSCALE;
 
                 for (i32 k = 0; k < RESOLUTION_UPSCALE; ++k)
