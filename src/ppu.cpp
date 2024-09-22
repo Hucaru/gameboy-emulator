@@ -90,6 +90,12 @@ determine_colour(Memory_Bus *memory_bus, u8 num, u16 address)
 }
 
 bool
+bg_and_window_enabled(Memory_Bus *memory_bus)
+{
+    return memory_bus->read_u8(LCD_CONTROL_REGISTER) & 0x01;
+}
+
+bool
 obj_enabled(Memory_Bus *memory_bus)
 {
     return memory_bus->read_u8(LCD_CONTROL_REGISTER) & 0x02;
@@ -215,56 +221,31 @@ calculate_bg_pixel(PPU *ppu, Memory_Bus *memory_bus, u8 current_line)
     u8 window_x = memory_bus->read_u8(WX_REGISTER) - 7;
     u8 window_y = memory_bus->read_u8(WY_REGISTER);
 
-    bool in_window_y = false;
-
-    if(window_enabled(memory_bus))
-    {
-        if (window_y <= current_line)
-        {
-            in_window_y = true;
-        }
-    }
-
     bool tile_data_signed_id;
     u16 tile_data_start_addr = bg_window_tile_data_start_address(memory_bus, &tile_data_signed_id);
 
-    u16 bg_data_start_addr = 0;
+    u16 bg_data_start_addr = bg_tile_map_start_address(memory_bus);
+    u8 pos_x = ppu->pixel + scroll_x; // x co-ordinate on the bg tile map
+    u8 pos_y = current_line + scroll_y; // y co-ordinate on the bg tile map
 
-    if (in_window_y)
+    if (window_enabled(memory_bus))
     {
-        bg_data_start_addr = window_tile_map_start_address(memory_bus);
-    }
-    else
-    {
-        bg_data_start_addr = bg_tile_map_start_address(memory_bus);
-    }
-
-    u8 pos_y;
-
-    if (in_window_y)
-    {
-        pos_y = current_line-window_y;
-    }
-    else
-    {
-        pos_y = current_line + scroll_y;
+        if ((window_y <= current_line) && (ppu->pixel >= window_x))
+        {
+            bg_data_start_addr = window_tile_map_start_address(memory_bus);
+            pos_x = ppu->pixel - window_x; // x co-ordinate on the window tile map
+            pos_y = ppu->window_line_counter; // y co-ordinate on the window tile map
+            ppu->window_used = true;
+        }
     }
 
-    u16 tile_row = (pos_y / 8) * 32;
-    
-    u8 pos_x = ppu->pixel + scroll_x;
-
-    if (in_window_y && (ppu->pixel >= window_x))
-    {
-        pos_x = ppu->pixel - window_x;
-    }
-
-    // which of the 32 horizontal tiles are we on
     u16 tile_column = pos_x / 8;
-    i16 tile_address = bg_data_start_addr + tile_row + tile_column;
+    u16 tile_row = (pos_y / 8) * 32;
+
+    u16 tile_address = bg_data_start_addr + tile_row + tile_column; // which of the 32 horizontal tiles are we on
 
     u16 tile_data_addr;
-    i16 tile_id;
+    u16 tile_id;
 
     if (tile_data_signed_id)
     {
@@ -303,6 +284,11 @@ calculate_sprite_pixel(PPU *ppu, Memory_Bus *memory_bus, u8 current_line, u32 pi
     for (i8 sprite = SPRITE_COUNT - 1; sprite >= 0; --sprite) 
     {
         if (!ppu->valid_oam_objects[sprite])
+        {
+            continue;
+        }
+
+        if (ppu->oam_object[sprite].properties.obj_bg_priority && pixel != PALETTE_COLOURS[WHITE])
         {
             continue;
         }
@@ -352,8 +338,19 @@ calculate_sprite_pixel(PPU *ppu, Memory_Bus *memory_bus, u8 current_line, u32 pi
 u32
 calculate_pixel(PPU *ppu, Memory_Bus *memory_bus, u8 current_line)
 {
-    u32 bg_window_pixel = calculate_bg_pixel(ppu, memory_bus, current_line);
-    return calculate_sprite_pixel(ppu, memory_bus, current_line, bg_window_pixel);
+    u32 pixel = PALETTE_COLOURS[WHITE];
+    
+    if (bg_and_window_enabled(memory_bus))
+    {
+        pixel = calculate_bg_pixel(ppu, memory_bus, current_line);
+    }
+    
+    if (obj_enabled(memory_bus))
+    {
+        pixel = calculate_sprite_pixel(ppu, memory_bus, current_line, pixel);
+    }
+    
+    return pixel;
 }
 
 void 
@@ -372,6 +369,9 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
         ppu->mode = PPU::Mode::PIXEL_TRANSFER;
         ppu->cycles = OAM_CYCLES;
 
+        memset(ppu->frame_buffer, PALETTE_COLOURS[WHITE], GAMEBOY_WIDTH * GAMEBOY_HEIGHT);
+        ppu->draw_frame = true; // We want to simulate the screen switching off
+
         return;
     }
 
@@ -381,7 +381,7 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
 
     if (current_line == memory_bus->read_u8(LYC_REGISTER))
     {
-        lcd_status |= 0x02;
+        lcd_status |= 0x04;
         memory_bus->write_u8(LCD_STATUS_REGISTER, lcd_status);
 
         if (lcd_status & 0x40)
@@ -391,14 +391,17 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
     }
     else
     {
-        lcd_status &= ~0x02;
+        lcd_status &= ~0x04;
         memory_bus->write_u8(LCD_STATUS_REGISTER, lcd_status);
     }
 
     switch (ppu->mode)
     {
         case PPU::Mode::OAM:
-            set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_2, lcd_status);
+            if (ppu->cycles == 0)
+            {
+                set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_2, lcd_status);
+            }
 
             if (ppu->cycles == OAM_CYCLES)
             {
@@ -412,6 +415,11 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
                     ppu->oam_object[sprite].x_pos = memory_bus->read_i8(OAM_START_ADDRESS + offset + 1) - 8;
                     ppu->oam_object[sprite].tile = memory_bus->read_u8(OAM_START_ADDRESS + offset + 2);
                     ppu->oam_object[sprite].properties.byte = memory_bus->read_u8(OAM_START_ADDRESS  + offset + 3);
+
+                    if (sprite_height == 16)
+                    {
+                        ppu->oam_object[sprite].tile &= ~0x01;
+                    }
 
                     i8 y_pos = ppu->oam_object[sprite].y_pos;
                     if (count < 10 && y_pos <= current_line && (y_pos + sprite_height) > current_line)
@@ -429,7 +437,10 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
             }
             break;
         case PPU::Mode::PIXEL_TRANSFER:
-            set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_3, lcd_status);
+            if (ppu->pixel == 0)
+            {
+                set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_3, lcd_status);
+            }
 
             ppu->frame_buffer[ppu->pixel + (current_line * GAMEBOY_WIDTH)] = calculate_pixel(ppu, memory_bus, current_line);
 
@@ -437,6 +448,12 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
             {
                 ppu->mode = PPU::Mode::HBLANK;
                 ppu->pixel = 0;
+
+                if (ppu->window_used)
+                {
+                    ppu->window_used = false;
+                    ppu->window_line_counter++;
+                }
             }
             else
             {
@@ -446,7 +463,10 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
         case PPU::Mode::HBLANK:
             // Pixel transfer can take arbitary cycle amount but we know the maximum cycle count a line takes
             // which is the same amount of cycles vblank takes
-            set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_0, lcd_status);
+            if (ppu->pixel == 0)
+            {
+                set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_0, lcd_status);
+            }
 
             if (ppu->cycles == (HBLANK_CYCLES + PIXEL_TRANSFER_CYCLES + OAM_CYCLES))
             {
@@ -470,7 +490,10 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
             }
             break;
         case PPU::Mode::VBLANK:
-            set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_1, lcd_status);
+            if (current_line == 144)
+            {
+                set_lcd_status_ppu_mode(memory_bus, LCD_STATUS_PPU_MODE_1, lcd_status);
+            }
 
             if (ppu->cycles == VBLANK_CYCLES)
             {
@@ -478,6 +501,7 @@ ppu_cycle(PPU *ppu, Memory_Bus *memory_bus)
                 {
                     memory_bus->memory[LY_REGISTER] = 0;
                     ppu->mode = PPU::Mode::OAM;
+                    ppu->window_line_counter = 0;
                 }
                 else
                 {
