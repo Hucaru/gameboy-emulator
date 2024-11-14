@@ -3,6 +3,9 @@
 #include "types.h"
 #include "platform.h"
 
+#include <queue>
+#include <functional>
+
 // General
 const u8 GAMEBOY_WIDTH = 160;
 const u8 GAMEBOY_HEIGHT = 144;
@@ -119,16 +122,6 @@ struct PPU
     bool draw_background_buffer;
 };
 
-struct CPU
-{
-    u8 registers[8]; // order: B C D E H L F A
-    u16 pc;
-    u16 sp;
-    u8 remaining_cycles;
-    bool interrupt_master_enable;
-    bool halted;
-};
-
 struct Timers
 {
     u32 tima_cycles_remaining;
@@ -159,6 +152,30 @@ struct Memory_Bus
 
     void write_u16(u16 address, u16 v);
     u16 read_u16(u16 address);
+};
+
+struct CPU
+{
+    u8 registers[8]; // order: B C D E H L F A
+    u16 pc;
+    u16 sp;
+    // Z80 temporary registers
+    u8 w;
+    u8 z;
+
+    u8 tick;
+    u8 remaining_cycles;
+    bool interrupt_master_enable;
+    bool halted;
+    bool extended;
+
+    enum class STATE : u8 
+    {
+        READ_OPCODE, 
+        EXECUTE_PIPELINE
+    } state;
+
+    std::queue<std::function<void(CPU*,Memory_Bus*)>> pipeline;
 };
 
 void perform_interrupt(Memory_Bus *memory_bus, u8 flag);
