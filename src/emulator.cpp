@@ -92,12 +92,7 @@ init_application(int argc, char **argv, App *app)
 
     printf("[Emulator] STEP MODE: %s\n", state->step ? "enabled" : "disabled");
 
-    state->memory_bus.timers = &state->timers;
-    state->memory_bus.memory[JOYPAD_REGISTER] = 0x3F;
-    state->memory_bus.joypad.state = 0xFF;
-    state->memory_bus.joypad.button = false;
-    state->memory_bus.joypad.direction = false;
-
+    memory_bus_init(&state->memory_bus, &state->timers);
     cpu_init(&state->cpu, &state->memory_bus, false, state->memory_bus.cartridge.old_license_code, state->memory_bus.cartridge.new_license_code);
     timers_init(&state->timers, &state->memory_bus);
     ppu_init(&state->ppu, &state->memory_bus);
@@ -274,12 +269,4 @@ render_application(App *app, u32 *screen_pixels, i32 width, i32 height)
     {
         window_redraw(gb->background_window);
     }
-}
-
-void
-perform_interrupt(Memory_Bus *memory_bus, u8 flag)
-{
-    u8 interrupts = memory_bus->read_u8(INTERRUPT_FLAG);
-    interrupts |= flag;
-    memory_bus->write_u8(INTERRUPT_FLAG, interrupts);
 }

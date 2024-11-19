@@ -180,6 +180,8 @@ struct CPU
 
 void perform_interrupt(Memory_Bus *memory_bus, u8 flag);
 
+void memory_bus_init(Memory_Bus *memory_bus, Timers *timers);
+
 void timers_cycle(Timers *timers, Memory_Bus *memory_bus);
 void timers_init(Timers *timers, Memory_Bus *memory_bus);
 void timers_set_tac(Timers *timers, u8 mode);
