@@ -2192,7 +2192,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0xF1: // POP AF
             cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
             {
-                cpu->registers[Register::F] = memory_bus->read_u8(cpu->sp++);
+                cpu->registers[Register::F] = memory_bus->read_u8(cpu->sp++) & 0xF0; // TODO: Why do we need to mask this?
             });
 
             cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
