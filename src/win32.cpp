@@ -296,7 +296,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     }
 
     App app;
-    app.window_title = "Window";
+    app.window_title = const_cast<char*>("Window");
     app.window_width = CW_USEDEFAULT;
     app.window_height = CW_USEDEFAULT;         
     app.application = NULL;

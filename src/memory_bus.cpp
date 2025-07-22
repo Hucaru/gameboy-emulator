@@ -222,3 +222,13 @@ Memory_Bus::read_u16(u16 address)
 {
     return static_cast<u16>(read_u8(address)) | static_cast<u16>(read_u8(address + 1)) << 8;
 }
+
+void
+memory_bus_init(Memory_Bus *memory_bus, Timers *timers)
+{
+    memory_bus->timers = timers;
+    memory_bus->memory[JOYPAD_REGISTER] = 0x3F;
+    memory_bus->joypad.state = 0xFF;
+    memory_bus->joypad.button = false;
+    memory_bus->joypad.direction = false;
+}

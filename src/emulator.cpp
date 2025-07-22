@@ -92,26 +92,20 @@ init_application(int argc, char **argv, App *app)
 
     printf("[Emulator] STEP MODE: %s\n", state->step ? "enabled" : "disabled");
 
-    state->memory_bus.timers = &state->timers;
-    state->memory_bus.memory[JOYPAD_REGISTER] = 0x3F;
-    state->memory_bus.joypad.state = 0xFF;
-    state->memory_bus.joypad.button = false;
-    state->memory_bus.joypad.direction = false;
-
+    memory_bus_init(&state->memory_bus, &state->timers);
     cpu_init(&state->cpu, &state->memory_bus, false, state->memory_bus.cartridge.old_license_code, state->memory_bus.cartridge.new_license_code);
     timers_init(&state->timers, &state->memory_bus);
     ppu_init(&state->ppu, &state->memory_bus);
 
     state->tile_window = create_window(TILE_WINDOW_HEIGHT * RESOLUTION_UPSCALE, TILE_WINDOW_WIDTH * RESOLUTION_UPSCALE, "VRAM");
-    state->background_window = create_window(BACKGROUND_WINDOW_HEIGHT * BACKGROUND_WINDOW_RESOLUTION_SCALE, BACKGROUND_WINDOW_WIDTH * BACKGROUND_WINDOW_RESOLUTION_SCALE, "Background");
 
     if (!state->tile_window)
     {
         return false;
     }
 
-    app->window_title = reinterpret_cast<char*>(std::malloc(20));
-    std::memset(app->window_title, 0, 20);
+    app->window_title = reinterpret_cast<char*>(std::malloc(255));
+    std::memset(app->window_title, 0, 255);
     app->window_title[0] = 'G';
     app->window_title[1] = 'a';
     app->window_title[2] = 'm';
@@ -137,7 +131,7 @@ init_application(int argc, char **argv, App *app)
 }
 
 const i64 dmg_cycle_time_ns = 238;
-const i64 simulation_period = 1.6e+7 / 2; // 16 ms
+const i64 simulation_period = 1.6e+7 / 2;
 
 void
 update_application(App *app, i64 delta_time) 
@@ -151,7 +145,6 @@ update_application(App *app, i64 delta_time)
 
     gb->time_since_last_sim += delta_time;
 
-    // Only emulate cycles once every frame i.e. 16ms/60Hz
     if (gb->time_since_last_sim < simulation_period)
     {
         return;
@@ -164,7 +157,9 @@ update_application(App *app, i64 delta_time)
 
     i64 cycles_to_simulate = gb->time_since_last_sim / dmg_cycle_time_ns;
 
-    for (i64 i = 0; i < cycles_to_simulate * 2; ++i)
+    printf("time/period: %lld/%lld cycles: %lld\n", gb->time_since_last_sim, simulation_period, cycles_to_simulate);
+
+    for (i64 i = 0; i < cycles_to_simulate; ++i)
     {
         cpu_cycle(cpu, memory_bus);
         timers_cycle(timers, memory_bus);
@@ -269,17 +264,4 @@ render_application(App *app, u32 *screen_pixels, i32 width, i32 height)
 
         window_redraw(gb->tile_window);
     }
-
-    if (gb->ppu.draw_background_buffer)
-    {
-        window_redraw(gb->background_window);
-    }
-}
-
-void
-perform_interrupt(Memory_Bus *memory_bus, u8 flag)
-{
-    u8 interrupts = memory_bus->read_u8(INTERRUPT_FLAG);
-    interrupts |= flag;
-    memory_bus->write_u8(INTERRUPT_FLAG, interrupts);
 }

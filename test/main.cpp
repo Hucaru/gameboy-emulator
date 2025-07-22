@@ -35,6 +35,7 @@ int main(int argc, char **argv)
         {
             CPU cpu;
             Memory_Bus memory;
+            memory.cartridge.data = (u8*)malloc(0xFFFF);
 
             cpu.registers[0] = entry["initial"]["b"];
             cpu.registers[1] = entry["initial"]["c"];
@@ -45,16 +46,22 @@ int main(int argc, char **argv)
             cpu.registers[6] = entry["initial"]["f"];
             cpu.registers[7] = entry["initial"]["a"];
 
-            cpu.pc = entry["initial"]["pc"] - 1;
+            cpu.pc = entry["initial"]["pc"] - 1; // The test files seem to start after reading the opcode
             cpu.sp = entry["initial"]["sp"];
 
             for (const auto& mem : entry["initial"]["ram"])
             {
-                memory.memory[mem[0]] = mem[1];
+                memory.write_u8(mem[0], mem[1]);
             }
 
             std::cout << "Instruction: " << entry["name"] << "\n";
-            cpu_cycle(&cpu, &memory);
+            cpu.state = CPU::STATE::READ_OPCODE;
+            cpu_cycle(&cpu, &memory); // read opcode
+            
+            while (cpu.state != CPU::STATE::READ_OPCODE || cpu.extended)
+            {
+                cpu_cycle(&cpu, &memory); // execute pipeline
+            }
 
             bool pass = true;
 
@@ -66,19 +73,19 @@ int main(int argc, char **argv)
 
             if (cpu.registers[1] != entry["final"]["c"])
             {
-                std::cout << "register B does not have expected value "  << (u16)cpu.registers[1] << " != " << entry["final"]["c"] << std::endl;
+                std::cout << "register C does not have expected value "  << (u16)cpu.registers[1] << " != " << entry["final"]["c"] << std::endl;
                 pass = false;
             }
 
             if (cpu.registers[2] != entry["final"]["d"])
             {
-                std::cout << "register C does not have expected value "  << (u16)cpu.registers[2] << " != " << entry["final"]["d"] << std::endl;
+                std::cout << "register D does not have expected value "  << (u16)cpu.registers[2] << " != " << entry["final"]["d"] << std::endl;
                 pass = false;
             }
 
             if (cpu.registers[3] != entry["final"]["e"])
             {
-                std::cout << "register D does not have expected value "  << (u16)cpu.registers[3] << " != " << entry["final"]["e"] << std::endl;
+                std::cout << "register E does not have expected value "  << (u16)cpu.registers[3] << " != " << entry["final"]["e"] << std::endl;
                 pass = false;
             }
 
@@ -120,12 +127,14 @@ int main(int argc, char **argv)
 
             for (const auto& mem : entry["final"]["ram"])
             {
-                if (memory.memory[mem[0]] != mem[1])
+                if (memory.read_u8(mem[0]) != mem[1])
                 {
-                    std::cout << "memory is incorrect " << (u16)memory.memory[mem[0]] << " != " << (u16)mem[1] << std::endl;
+                    std::cout << "memory is incorrect at " << mem[0] << " " << (u16)memory.read_u8(mem[0]) << " != " << (u16)mem[1] << std::endl;
                     pass = false;
                 }
             }
+
+            free(memory.cartridge.data);
 
             if (!pass)
             {

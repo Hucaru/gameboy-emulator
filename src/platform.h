@@ -12,14 +12,10 @@ struct Input_events
 
     enum class KEY_STATE : u8 
     {
+        INNACTIVE = 0,
         DOWN = 1,
         UP = 2,
         HELD = 4
-    };
-
-    struct Gamepad 
-    {
-        u32 packet_number;
     };
 
     KEY_STATE keyboard[255];
