@@ -6,6 +6,27 @@ constexpr i8 SUBTRACT_FLAG_POS = 6;
 constexpr i8 HALF_CARRY_FLAG_POS = 5;
 constexpr i8 CARRY_FLAG_POS = 4;
 
+void CPU::Pipeline::push_back(std::function<void(CPU*,Memory_Bus*)> item)
+{
+    queue[next_insert] = item;
+    next_insert = (next_insert + 1) % CPU_PIPELINE_SIZE;
+}
+
+std::function<void(CPU*,Memory_Bus*)> CPU::Pipeline::front()
+{
+    return queue[pos];
+}
+
+void CPU::Pipeline::pop_front()
+{
+    pos = (pos + 1) % CPU_PIPELINE_SIZE;
+}
+
+bool CPU::Pipeline::empty()
+{
+    return pos == next_insert;
+}
+
 namespace Register
 {
     enum
@@ -403,12 +424,12 @@ set(CPU *cpu, u8 val, u8 bit_field)
 void
 stack_pop(CPU *cpu, Memory_Bus *memory_bus)
 {
-    cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+    cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
     {
         cpu->w = memory_bus->read_u8(cpu->sp++);
     });
 
-    cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+    cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
     {
         cpu->z = memory_bus->read_u8(cpu->sp++);
     });
@@ -417,12 +438,12 @@ stack_pop(CPU *cpu, Memory_Bus *memory_bus)
 void
 set_pc_from_tmp_2m(CPU *cpu)
 {
-    cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+    cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
     {
         cpu->pc = static_cast<u16>(cpu->w);
     });
 
-    cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+    cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
     {
         cpu->pc |= static_cast<u16>(cpu->z) << 8;
     });
@@ -431,7 +452,7 @@ set_pc_from_tmp_2m(CPU *cpu)
 void
 set_pc_from_tmp_1m(CPU *cpu)
 {
-    cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+    cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
     {
         cpu->pc = static_cast<u16>(cpu->w) | static_cast<u16>(cpu->z) << 8;
     });
@@ -440,12 +461,12 @@ set_pc_from_tmp_1m(CPU *cpu)
 void 
 stack_push(CPU *cpu, Memory_Bus *memory_bus, u16 val)
 {
-    cpu->pipeline.push([val](CPU *cpu, Memory_Bus *memory_bus)
+    cpu->pipeline.push_back([val](CPU *cpu, Memory_Bus *memory_bus)
     {
         memory_bus->write_u8(--cpu->sp, (val >> 8) & 0xFF);
     });
 
-    cpu->pipeline.push([val](CPU *cpu, Memory_Bus *memory_bus)
+    cpu->pipeline.push_back([val](CPU *cpu, Memory_Bus *memory_bus)
     {
         memory_bus->write_u8(--cpu->sp, val & 0xFF);
     });
@@ -454,17 +475,17 @@ stack_push(CPU *cpu, Memory_Bus *memory_bus, u16 val)
 void
 set_pc_from_mem_pc(CPU *cpu, Memory_Bus *memory_bus)
 {
-    cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+    cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
     {
         cpu->w = memory_bus->read_u8(cpu->pc++);
     });
 
-    cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+    cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
     {
         cpu->z = memory_bus->read_u8(cpu->pc++);
     });
 
-    cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+    cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
     {
         cpu->pc = static_cast<u16>(cpu->w) | static_cast<u16>(cpu->z) << 8;
     });
@@ -489,24 +510,24 @@ handle_extended_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x07:
             if (src == 0x06)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = memory_bus->read_u8(register_hl(cpu));
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = rlc(cpu, cpu->w);
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     memory_bus->write_u8(register_hl(cpu), cpu->w);
                 });
             }
             else
             {
-                cpu->pipeline.push([src](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([src](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->registers[src] = rlc(cpu, cpu->registers[src]);
                 });
@@ -525,24 +546,24 @@ handle_extended_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x0F:
             if (src == 0x06)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = memory_bus->read_u8(register_hl(cpu));
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = rrc(cpu, cpu->w);
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     memory_bus->write_u8(register_hl(cpu), cpu->w);
                 });
             }
             else
             {
-                cpu->pipeline.push([src](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([src](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->registers[src] = rrc(cpu, cpu->registers[src]);
                 });
@@ -561,24 +582,24 @@ handle_extended_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x17:
             if (src == 0x06)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = memory_bus->read_u8(register_hl(cpu));
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = rl(cpu, cpu->w);
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     memory_bus->write_u8(register_hl(cpu), cpu->w);
                 });
             }
             else
             {
-                cpu->pipeline.push([src](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([src](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->registers[src] = rl(cpu, cpu->registers[src]);
                 });
@@ -597,24 +618,24 @@ handle_extended_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x1F:
             if (src == 0x06)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = memory_bus->read_u8(register_hl(cpu));
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = rr(cpu, cpu->w);
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     memory_bus->write_u8(register_hl(cpu), cpu->w);
                 });
             }
             else
             {
-                cpu->pipeline.push([src](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([src](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->registers[src] = rr(cpu, cpu->registers[src]);
                 });
@@ -633,24 +654,24 @@ handle_extended_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x27:
             if (src == 0x06)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = memory_bus->read_u8(register_hl(cpu));
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = sla(cpu, cpu->w);
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     memory_bus->write_u8(register_hl(cpu), cpu->w);
                 });
             }
             else
             {
-                cpu->pipeline.push([src](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([src](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->registers[src] = sla(cpu, cpu->registers[src]);
                 });
@@ -669,24 +690,24 @@ handle_extended_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x2F:
             if (src == 0x06)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = memory_bus->read_u8(register_hl(cpu));
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = sra(cpu, cpu->w);
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     memory_bus->write_u8(register_hl(cpu), cpu->w);
                 });
             }
             else
             {
-                cpu->pipeline.push([src](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([src](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->registers[src] = sra(cpu, cpu->registers[src]);
                 });
@@ -705,24 +726,24 @@ handle_extended_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x37:
             if (src == 0x06)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = memory_bus->read_u8(register_hl(cpu));
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = swap(cpu, cpu->w);
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     memory_bus->write_u8(register_hl(cpu), cpu->w);
                 });
             }
             else
             {
-                cpu->pipeline.push([src](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([src](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->registers[src] = swap(cpu, cpu->registers[src]);
                 });
@@ -741,24 +762,24 @@ handle_extended_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x3F:
             if (src == 0x06)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = memory_bus->read_u8(register_hl(cpu));
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = srl(cpu, cpu->w);
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     memory_bus->write_u8(register_hl(cpu), cpu->w);
                 });
             }
             else
             {
-                cpu->pipeline.push([src](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([src](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->registers[src] = srl(cpu, cpu->registers[src]);
                 });
@@ -840,23 +861,23 @@ handle_extended_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x7F:
             if (src == 0x06)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = memory_bus->read_u8(register_hl(cpu));
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                 });
 
-                cpu->pipeline.push([second_val](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([second_val](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     bit(cpu, cpu->w, second_val);
                 });
             }
             else
             {
-                cpu->pipeline.push([src, second_val](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([src, second_val](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     bit(cpu, cpu->registers[src], second_val);
                 });
@@ -938,24 +959,24 @@ handle_extended_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0xBF:
             if (src == 0x06)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = memory_bus->read_u8(register_hl(cpu));
                 });
 
-                cpu->pipeline.push([second_val](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([second_val](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = res(cpu, cpu->w, second_val);
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     memory_bus->write_u8(register_hl(cpu), cpu->w);
                 });
             }
             else
             {
-                cpu->pipeline.push([src, second_val](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([src, second_val](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->registers[src] = res(cpu, cpu->registers[src], second_val);
                 });
@@ -1037,24 +1058,24 @@ handle_extended_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0xFF:
             if (src == 0x06)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = memory_bus->read_u8(register_hl(cpu));
                 });
 
-                cpu->pipeline.push([second_val](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([second_val](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = set(cpu, cpu->w, second_val);
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     memory_bus->write_u8(register_hl(cpu), cpu->w);
                 });
             }
             else
             {
-                cpu->pipeline.push([src, second_val](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([src, second_val](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->registers[src] = set(cpu, cpu->registers[src], second_val);
                 });
@@ -1073,12 +1094,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x00: // NOP
             break;
         case 0x01: // LD BC, u16
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::C] = memory_bus->read_u8(cpu->pc++);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::B] = memory_bus->read_u8(cpu->pc++);
             });
@@ -1086,7 +1107,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x02: // LD (BC), A
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 memory_bus->write_u8(register_bc(cpu), cpu->registers[Register::A]);
             });
@@ -1094,7 +1115,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x03: // INC BC
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 set_register_bc(cpu, register_bc(cpu) + 1);
             });
@@ -1102,7 +1123,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x06: // LD B, u8
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::B] = memory_bus->read_u8(cpu->pc++);
             });
@@ -1114,23 +1135,23 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             set_flag_zero(cpu, false);
             break;
         case 0x08: // LD (u16), SP
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->w = memory_bus->read_u8(cpu->pc++);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->z = memory_bus->read_u8(cpu->pc++);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 u16 addr = static_cast<u16>(cpu->w) | static_cast<u16>(cpu->z) << 8 ;
                 memory_bus->write_u8(addr, cpu->sp & 0xFF);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 u16 addr = static_cast<u16>(cpu->w) | static_cast<u16>(cpu->z) << 8;
                 memory_bus->write_u8(addr + 1, (cpu->sp >> 8) & 0xFF);
@@ -1139,7 +1160,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x09: // ADD HL, BC
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 set_register_hl(cpu, add_registers_u16(cpu, register_hl(cpu), register_bc(cpu)));
             });
@@ -1147,7 +1168,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x0A: // LD A, (BC)
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::A] = memory_bus->read_u16(register_bc(cpu));
             });
@@ -1155,7 +1176,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x0B: // DEC BC
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 set_register_bc(cpu, register_bc(cpu) - 1);
             });
@@ -1163,7 +1184,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x0E: // LD C, u8
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::C] = memory_bus->read_u8(cpu->pc++);
             });
@@ -1176,14 +1197,15 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             break;
         case 0x10: // STOP
             // TODO: stop stuff
+            cpu->pc++; // skips next instruction
             break;
         case 0x11: // LD DE, u16
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::E] = memory_bus->read_u8(cpu->pc++);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::D] = memory_bus->read_u8(cpu->pc++);
             });
@@ -1191,7 +1213,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x012: // LD (DE), A
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 memory_bus->write_u8(register_de(cpu), cpu->registers[Register::A]);
             });
@@ -1199,7 +1221,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x13: // INC DE
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 set_register_de(cpu, register_de(cpu) + 1);
             });
@@ -1211,12 +1233,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             set_flag_zero(cpu, false);
             break;
         case 0x18: // JR i8
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->w = memory_bus->read_u8(cpu->pc++);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->pc += static_cast<i8>(cpu->w);
             });
@@ -1224,7 +1246,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x19: // ADD HL, DE
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 set_register_hl(cpu, add_registers_u16(cpu, register_hl(cpu), register_de(cpu)));
             });
@@ -1232,7 +1254,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x1A: // LD A, (DE)
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::A] =  memory_bus->read_u16(register_de(cpu));
             });
@@ -1240,7 +1262,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x1B: // DEC DE
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 set_register_de(cpu, register_de(cpu) - 1);
             });
@@ -1254,19 +1276,19 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x20: // JR NZ, i8
             if (flag_zero(cpu))
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
             }
             else
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = memory_bus->read_u8(cpu->pc++);
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc += static_cast<i8>(cpu->w);
                 });
@@ -1275,12 +1297,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x21: // LD HL, u16
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::L] = memory_bus->read_u8(cpu->pc++);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::H] = memory_bus->read_u8(cpu->pc++);
             });
@@ -1288,7 +1310,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x22: // LD (HL++), A
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 memory_bus->write_u16(register_hl(cpu), cpu->registers[Register::A]);
                 set_register_hl(cpu, register_hl(cpu) + 1);
@@ -1297,7 +1319,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x23: // INC HL
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 set_register_hl(cpu, register_hl(cpu) + 1);
             });
@@ -1341,19 +1363,19 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x28: // JR Z, i8
             if (flag_zero(cpu))
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = memory_bus->read_u8(cpu->pc++);
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc += static_cast<i8>(cpu->w);
                 });
             }
             else
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
@@ -1362,7 +1384,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x29: // ADD HL, HL
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 set_register_hl(cpu, add_registers_u16(cpu, register_hl(cpu), register_hl(cpu)));
             });
@@ -1370,7 +1392,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x2A: // LD A, (HL++)
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::A] = memory_bus->read_u8(register_hl(cpu));
                 set_register_hl(cpu, register_hl(cpu) + 1);
@@ -1379,7 +1401,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x2B: // DEC HL
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 set_register_hl(cpu, register_hl(cpu) - 1);
             });
@@ -1387,7 +1409,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x2F: // CPL
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 u8 val = cpu->registers[Register::A];
                 val = ~val;
@@ -1396,7 +1418,6 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
                 set_flag_half_carry(cpu, true);
 
                 cpu->registers[Register::A] = val;
-                cpu->remaining_cycles = 4;
             });
 
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
@@ -1404,19 +1425,19 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x30: // JR NC, i8
             if (flag_carry(cpu))
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
             }
             else
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = memory_bus->read_u8(cpu->pc++);
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc += static_cast<i8>(cpu->w);
                 });
@@ -1425,12 +1446,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x31: // LD SP, u16
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->w = memory_bus->read_u8(cpu->pc++);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->sp = static_cast<u16>(cpu->w) | static_cast<u16>(memory_bus->read_u8(cpu->pc++)) << 8;
             });
@@ -1438,7 +1459,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x32: // LD (HL--), A
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 memory_bus->write_u16(register_hl(cpu), cpu->registers[Register::A]);
                 set_register_hl(cpu, register_hl(cpu) - 1);
@@ -1447,7 +1468,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x33: // INC SP
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->sp++;
             });
@@ -1462,19 +1483,19 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0x38: // JR C, i8
             if (flag_carry(cpu))
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->w = memory_bus->read_u8(cpu->pc++);
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc += static_cast<i8>(cpu->w);
                 });
             }
             else
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
@@ -1483,7 +1504,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x39: // ADD HL, SP
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 set_register_hl(cpu, add_registers_u16(cpu, register_hl(cpu), cpu->sp));
             });
@@ -1491,7 +1512,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x3A: // LD A, (HL--)
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::A] = memory_bus->read_u8(register_hl(cpu));
                 set_register_hl(cpu, register_hl(cpu) - 1);
@@ -1500,7 +1521,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0x3B: // DEC SP
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->sp--;
             });
@@ -1526,7 +1547,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
 
             if (reg_src == 6)
             {
-                cpu->pipeline.push([reg_dst](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([reg_dst](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->registers[reg_dst] = memory_bus->read_u8(register_hl(cpu));
                 });
@@ -1535,7 +1556,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             else if (reg_dst == 6)
             {
-                cpu->pipeline.push([reg_src](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([reg_src](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     memory_bus->write_u8(register_hl(cpu), cpu->registers[reg_src]);
                 });
@@ -1548,7 +1569,10 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
         } break;
         case 0x76: // HALT
-            cpu->halted = true;
+            if (cpu->interrupt_master_enable)
+            {
+                cpu->halted = true;
+            }           
             break;
         case 0x80: case 0x81: case 0x82: case 0x83: case 0x84: case 0x85: case 0x86: case 0x87: // ADD
         {
@@ -1556,7 +1580,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             
             if (reg_src == 6)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     u8 val = memory_bus->read_u8(register_hl(cpu));
                     cpu->registers[Register::A] = adc(cpu, cpu->registers[Register::A], val, 0);
@@ -1576,7 +1600,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
 
             if (reg_src == 6)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     u8 val = memory_bus->read_u8(register_hl(cpu));
                     cpu->registers[Register::A] = adc(cpu, cpu->registers[Register::A], val, flag_carry(cpu));
@@ -1596,7 +1620,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
 
             if (reg_src == 6)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     u8 val = memory_bus->read_u8(register_hl(cpu));
                     cpu->registers[Register::A] = sbc(cpu, cpu->registers[Register::A], val, 0);
@@ -1616,7 +1640,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
 
             if (reg_src == 6)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     u8 val = memory_bus->read_u8(register_hl(cpu));
                     cpu->registers[Register::A] = sbc(cpu, cpu->registers[Register::A], val, flag_carry(cpu));
@@ -1636,7 +1660,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
 
             if (reg_src == 6)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     u8 val = memory_bus->read_u8(register_hl(cpu));
                     cpu->registers[Register::A] = bitwise_and(cpu, cpu->registers[Register::A], val);
@@ -1656,7 +1680,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
 
             if (reg_src == 6)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     u8 val = memory_bus->read_u8(register_hl(cpu));
                     cpu->registers[Register::A] = bitwise_xor(cpu, cpu->registers[Register::A], val);
@@ -1676,7 +1700,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
 
             if (reg_src == 6)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     u8 val = memory_bus->read_u8(register_hl(cpu));
                     cpu->registers[Register::A] = bitwise_or(cpu, cpu->registers[Register::A], val);
@@ -1696,7 +1720,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
 
             if (reg_src == 6)
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     u8 val = memory_bus->read_u8(register_hl(cpu));
                     sbc(cpu, cpu->registers[Register::A], val, 0); // ignore the result we only want to set flags
@@ -1718,18 +1742,18 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             else
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus){});
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus){});
             }
 
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xC1: // POP BC
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::C] = memory_bus->read_u8(cpu->sp++);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::B] = memory_bus->read_u8(cpu->sp++);
             });
@@ -1743,12 +1767,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             else
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
@@ -1768,12 +1792,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             else
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
@@ -1782,12 +1806,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xC5: // PUSH BC
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus){}); //docs say this instruction is 16 cycles
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus){}); //docs say this instruction is 16 cycles
             stack_push(cpu, memory_bus, register_bc(cpu));
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xC6: // ADD A, u8
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::A] = adc(cpu, cpu->registers[Register::A], memory_bus->read_u8(cpu->pc), 0);
                 cpu->pc++;
@@ -1798,7 +1822,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0xC7: // RST 00h
             stack_push(cpu, memory_bus, cpu->pc);
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->pc = 0x00;
             });
@@ -1813,7 +1837,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             else
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus){});
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus){});
             }
 
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
@@ -1830,12 +1854,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             else
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
@@ -1854,12 +1878,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             else
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
@@ -1873,7 +1897,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xCE: // ADC A, u8
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::A] = adc(cpu, cpu->registers[Register::A], memory_bus->read_u8(cpu->pc), flag_carry(cpu));
                 cpu->pc++;
@@ -1884,7 +1908,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0xCF: // RST 08h
             stack_push(cpu, memory_bus, cpu->pc);
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->pc = 0x08;
             });
@@ -1899,18 +1923,18 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             else
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus){});
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus){});
             }
 
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xD1: // POP DE
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::E] = memory_bus->read_u8(cpu->sp++);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::D] = memory_bus->read_u8(cpu->sp++);
             });
@@ -1924,12 +1948,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             else
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
@@ -1945,12 +1969,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             else
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
@@ -1959,12 +1983,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xD5: // PUSH DE
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus){});
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus){});
             stack_push(cpu, memory_bus, register_de(cpu));
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break; 
         case 0xD6: // SUB A, u8
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::A] = sbc(cpu, cpu->registers[Register::A], memory_bus->read_u8(cpu->pc), 0);
                 cpu->pc++;
@@ -1975,7 +1999,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0xD7: // RST 10h
             stack_push(cpu, memory_bus, cpu->pc);
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->pc = 0x10;
             });
@@ -1987,11 +2011,10 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             {
                 stack_pop(cpu, memory_bus);
                 set_pc_from_tmp_2m(cpu);
-                cpu->remaining_cycles = 20; // with branch
             }
             else
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus){});
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus){});
             }
 
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
@@ -2009,12 +2032,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             else
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
@@ -2030,12 +2053,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             }
             else
             {
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
 
-                cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                 {
                     cpu->pc++;
                 });
@@ -2044,7 +2067,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xDE: // SBC A, u8
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::A] = sbc(cpu, cpu->registers[Register::A], memory_bus->read_u8(cpu->pc), flag_carry(cpu));
                 cpu->pc++;
@@ -2055,7 +2078,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0xDF: // RST 18h
             stack_push(cpu, memory_bus, cpu->pc);
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->pc = 0x18;
             });
@@ -2063,12 +2086,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xE0: // LD (FF00+u8), A
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 memory_bus->write_u8(0xFF00 + memory_bus->read_u8(cpu->pc), cpu->registers[Register::A]);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->pc++;
             });
@@ -2076,12 +2099,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xE1: // POP HL
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::L] = memory_bus->read_u8(cpu->sp++);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::H] = memory_bus->read_u8(cpu->sp++);
             });
@@ -2089,7 +2112,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xE2: // LD (FF00+C), A
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 memory_bus->write_u8(0xFF00 + cpu->registers[Register::C], cpu->registers[Register::A]);
             });
@@ -2097,12 +2120,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xE5: // PUSH HL
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus){});
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus){});
             stack_push(cpu, memory_bus, register_hl(cpu));
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xE6: // AND A, u8
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::A] = bitwise_and(cpu, cpu->registers[Register::A], memory_bus->read_u8(cpu->pc));
                 cpu->pc++;
@@ -2113,7 +2136,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0xE7: // RST 20h
             stack_push(cpu, memory_bus, cpu->pc);
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->pc = 0x20;
             });
@@ -2121,14 +2144,14 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xE8: // ADD SP, i8
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus){});
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus){});
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->w = memory_bus->read_u8(cpu->pc++);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->sp = add_u16_i8(cpu, cpu->sp, cpu->w);
             });
@@ -2139,17 +2162,17 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->pc = register_hl(cpu);
             break;
         case 0xEA: // LD (u16), A
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->w = memory_bus->read_u8(cpu->pc++);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->z = memory_bus->read_u8(cpu->pc++);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 u16 v = static_cast<u16>(cpu->w) | static_cast<u16>(cpu->z) << 8;
                 memory_bus->write_u8(v, cpu->registers[Register::A]);
@@ -2158,7 +2181,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xEE: // XOR A, u8
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::A] = bitwise_xor(cpu, cpu->registers[Register::A], memory_bus->read_u8(cpu->pc));
                 cpu->pc++;
@@ -2169,7 +2192,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0xEF: // RST 28h
             stack_push(cpu, memory_bus, cpu->pc);
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->pc = 0x28;
             });
@@ -2177,12 +2200,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xF0: // LD A, (FF00+u8)
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->w = memory_bus->read_u8(cpu->pc++);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::A] = memory_bus->read_u8(0xFF00 + cpu->w);
             });
@@ -2190,12 +2213,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xF1: // POP AF
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
-                cpu->registers[Register::F] = memory_bus->read_u8(cpu->sp++) & 0xF0; // TODO: Why do we need to mask this?
+                cpu->registers[Register::F] = memory_bus->read_u8(cpu->sp++) & 0xF0; // Lower bits are flags in f register?
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::A] = memory_bus->read_u8(cpu->sp++);
             });
@@ -2203,7 +2226,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xF2: // LD A, (FF00+C)
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::A] = memory_bus->read_u8(0xFF00 + cpu->registers[Register::C]);
             });
@@ -2214,12 +2237,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->interrupt_master_enable = false;
             break;
         case 0xF5: // PUSH AF
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus){});
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus){});
             stack_push(cpu, memory_bus, register_af(cpu));
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xF6: // OR A, u8
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->registers[Register::A] = bitwise_or(cpu, cpu->registers[Register::A], memory_bus->read_u8(cpu->pc));
                 cpu->pc++;
@@ -2230,7 +2253,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0xF7: // RST 30h
             stack_push(cpu, memory_bus, cpu->pc);
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->pc = 0x30;
             });
@@ -2238,19 +2261,19 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xF8: // LD HL, SP+i8
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->w = memory_bus->read_u8(cpu->pc++);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 u16 v = add_u16_i8(cpu, cpu->sp, cpu->w);
                 cpu->w = v & 0x00FF;
                 cpu->z = (v >> 8) & 0x00FF;
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 u16 v = static_cast<u16>(cpu->w) | static_cast<u16>(cpu->z) << 8;
                 set_register_hl(cpu, v);
@@ -2259,7 +2282,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xF9: // LD SP, HL
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->sp = register_hl(cpu);
             });
@@ -2267,17 +2290,17 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->state = CPU::STATE::EXECUTE_PIPELINE;
             break;
         case 0xFA: // LD A, (u16)
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->w = memory_bus->read_u8(cpu->pc++);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->z = memory_bus->read_u8(cpu->pc++);
             });
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 u16 v = static_cast<u16>(cpu->w) | static_cast<u16>(cpu->z) << 8;
                 cpu->registers[Register::A] = memory_bus->read_u16(v);
@@ -2289,7 +2312,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
             cpu->interrupt_master_enable = true;
             break;
         case 0xFE: // CP A, u8
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 sbc(cpu, cpu->registers[Register::A], memory_bus->read_u8(cpu->pc), 0);
                 cpu->pc++;
@@ -2300,7 +2323,7 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
         case 0xFF: // RST 38h
             stack_push(cpu, memory_bus, cpu->pc);
 
-            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
             {
                 cpu->pc = 0x38;
             });
@@ -2319,12 +2342,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
                     {
                         if (reg == 6)
                         {
-                            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                             {
                                 cpu->w = memory_bus->read_u8(register_hl(cpu));
                             });
 
-                            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                             {
                                 memory_bus->write_u8(register_hl(cpu), inc_u8(cpu, cpu->w));
                             });
@@ -2340,12 +2363,12 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
                     {
                         if (reg == 6)
                         {
-                            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                             {
                                 cpu->w = memory_bus->read_u8(register_hl(cpu));
                             });
 
-                            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                             {
                                 memory_bus->write_u8(register_hl(cpu), dec_u8(cpu, cpu->w));
                             });
@@ -2361,21 +2384,19 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
                     {
                         if (reg == 6)
                         {
-                            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                             {
                                 cpu->w = memory_bus->read_u8(cpu->pc++);
                             });
 
-                            cpu->pipeline.push([](CPU *cpu, Memory_Bus *memory_bus)
+                            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus)
                             {
                                 memory_bus->write_u8(register_hl(cpu), cpu->w);
                             });
-                            
-                            cpu->remaining_cycles = 12;
                         }
                         else
                         {
-                            cpu->pipeline.push([reg](CPU *cpu, Memory_Bus *memory_bus)
+                            cpu->pipeline.push_back([reg](CPU *cpu, Memory_Bus *memory_bus)
                             {
                                 cpu->registers[reg] = memory_bus->read_u8(cpu->pc++);
                             });
@@ -2385,11 +2406,11 @@ handle_opcode(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
                     } break;
                 }
             }
-        }
+    }
 }
 
 void
-insert_microcode_pipeline(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
+insert_pipeline(CPU *cpu, Memory_Bus *memory_bus, u8 opcode)
 {
     if (cpu->extended)
     {
@@ -2420,11 +2441,11 @@ cpu_tick(CPU *cpu, Memory_Bus *memory_bus)
     switch (cpu->state)
     {
         case CPU::STATE::READ_OPCODE:
-            insert_microcode_pipeline(cpu, memory_bus, memory_bus->read_u8(cpu->pc++));
+            insert_pipeline(cpu, memory_bus, memory_bus->read_u8(cpu->pc++));
             break;
         case CPU::STATE::EXECUTE_PIPELINE:
             cpu->pipeline.front()(cpu, memory_bus);
-            cpu->pipeline.pop();
+            cpu->pipeline.pop_front();
 
             if (cpu->pipeline.empty())
             {
@@ -2434,24 +2455,41 @@ cpu_tick(CPU *cpu, Memory_Bus *memory_bus)
     }
 }
 
-bool
+void
 handle_interrupt(CPU *cpu, Memory_Bus *memory_bus, u8 interrupt_flag)
 {
-    u8 interrupt_enable = memory_bus->read_u8(INTERRUPT_ENABLE);
+    u8 interrupt_enable = memory_bus->read_u8(INTERRUPT_ENABLE); // IE flag
 
     for (u8 i = 0; i < 5; ++i)
     {
         u8 bit = 0x01 << i;
         if ((bit & interrupt_flag) && (bit & interrupt_enable))
         {
+            cpu->halted = false;
             cpu->interrupt_master_enable = false;
+
             interrupt_flag &= ~bit;
             memory_bus->write_u8(INTERRUPT_FLAG, interrupt_flag);
 
-            stack_push(cpu, memory_bus, cpu->pc);
+            cpu->w = bit;
+            
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus) {}); // nop
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus) {}); // nop
 
-            switch (bit)
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus) 
             {
+                memory_bus->write_u8(--cpu->sp, (cpu->pc >> 8) & 0xFF);
+            });
+
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus) 
+            {
+                memory_bus->write_u8(--cpu->sp, cpu->pc & 0xFF);
+            });
+
+            cpu->pipeline.push_back([](CPU *cpu, Memory_Bus *memory_bus) 
+            {
+                switch (cpu->w)
+                {
                 case INTERRUPT_VBLANK:
                     cpu->pc = 0x40;
                     break;
@@ -2467,33 +2505,31 @@ handle_interrupt(CPU *cpu, Memory_Bus *memory_bus, u8 interrupt_flag)
                 case INTERRUPT_JOYPAD:
                     cpu->pc = 0x60;
                     break;
-            }
+                }
+            });
 
-            cpu->remaining_cycles = 20;
-            return true;
+            cpu->state = CPU::STATE::EXECUTE_PIPELINE;
+            break;
         }
     }
-
-    return false;
 }
 
 void 
 cpu_cycle(CPU *cpu, Memory_Bus *memory_bus)
 {
     cpu_tick(cpu, memory_bus);
-    u8 interrupt_flag = memory_bus->read_u8(INTERRUPT_FLAG);
 
-    if (interrupt_flag)
+    // TODO: check only service interrupts after an opcode has been completed is correct
+    if (cpu->state == CPU::STATE::EXECUTE_PIPELINE)
     {
-        cpu->halted = false;
+        return;
     }
+
+    u8 interrupt_flag = memory_bus->read_u8(INTERRUPT_FLAG);
 
     if (cpu->interrupt_master_enable && interrupt_flag)
     {
-        if (handle_interrupt(cpu, memory_bus, interrupt_flag))
-        {
-            return;
-        }
+        handle_interrupt(cpu, memory_bus, interrupt_flag);
     }
 }
 

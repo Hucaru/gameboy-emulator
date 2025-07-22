@@ -3,49 +3,51 @@
 #include "types.h"
 #include "platform.h"
 
-#include <queue>
+#include <deque>
 #include <functional>
 
 // General
-const u8 GAMEBOY_WIDTH = 160;
-const u8 GAMEBOY_HEIGHT = 144;
-const u8 RESOLUTION_UPSCALE = 4;
+constexpr u8 GAMEBOY_WIDTH = 160;
+constexpr u8 GAMEBOY_HEIGHT = 144;
+constexpr u8 RESOLUTION_UPSCALE = 4;
 
-const u16 TILE_COUNT = 384;
-const u16 TILE_WINDOW_WIDTH = 192;
-const u16 TILE_WINDOW_HEIGHT = 128;
+constexpr u16 TILE_COUNT = 384;
+constexpr u16 TILE_WINDOW_WIDTH = 192;
+constexpr u16 TILE_WINDOW_HEIGHT = 128;
 
-const u16 BACKGROUND_WINDOW_WIDTH = 256;
-const u16 BACKGROUND_WINDOW_HEIGHT = 256;
-const u8 BACKGROUND_WINDOW_RESOLUTION_SCALE = 2;
+constexpr u16 BACKGROUND_WINDOW_WIDTH = 256;
+constexpr u16 BACKGROUND_WINDOW_HEIGHT = 256;
+constexpr u8 BACKGROUND_WINDOW_RESOLUTION_SCALE = 2;
 
-const u16 INTERRUPT_FLAG = 0xFF0F;
-const u16 INTERRUPT_ENABLE= 0xFFFF;
-const u8 INTERRUPT_VBLANK = 0x01;
-const u8 INTERRUPT_LCD = 0x01 << 1;
-const u8 INTERRUPT_TIMER = 0x01 << 2;
-const u8 INTERRUPT_SERIAL = 0x01 << 3;
-const u8 INTERRUPT_JOYPAD = 0x01 << 4;
+constexpr u16 INTERRUPT_FLAG = 0xFF0F;
+constexpr u16 INTERRUPT_ENABLE= 0xFFFF;
+constexpr u8 INTERRUPT_VBLANK = 0x01;
+constexpr u8 INTERRUPT_LCD = 0x01 << 1;
+constexpr u8 INTERRUPT_TIMER = 0x01 << 2;
+constexpr u8 INTERRUPT_SERIAL = 0x01 << 3;
+constexpr u8 INTERRUPT_JOYPAD = 0x01 << 4;
 
 // Cartridge
-const u16 CARTRIDGE_TITLE = 0x0134;
-const u16 SOUND_CONTROLLER_ON_OF = 0xFF26;
+constexpr u16 CARTRIDGE_TITLE = 0x0134;
+constexpr u16 SOUND_CONTROLLER_ON_OF = 0xFF26;
 
 // PPU
-const u16 LY_REGISTER = 0xFF44;
+constexpr u16 LY_REGISTER = 0xFF44;
 
 // Timers
-const u16 DIV = 0xFF04;
-const u16 TIMA = 0xFF05;
-const u16 TMA = 0xFF06;
-const u16 TAC = 0xFF07;
+constexpr u16 DIV = 0xFF04;
+constexpr u16 TIMA = 0xFF05;
+constexpr u16 TMA = 0xFF06;
+constexpr u16 TAC = 0xFF07;
 
-const u16 DMA_REGISTER = 0xFF46;
-const u16 JOYPAD_REGISTER = 0xFF00;
-const u16 SERIAL_DATA_TRANSFER = 0xFF01;
+constexpr u16 DMA_REGISTER = 0xFF46;
+constexpr u16 JOYPAD_REGISTER = 0xFF00;
+constexpr u16 SERIAL_DATA_TRANSFER = 0xFF01;
 
-const u8 JOYPAD_DIRECTION_REQUEST = 0x10;
-const u8 JOYPAD_BUTTON_REQUEST = 0x20;
+constexpr u8 JOYPAD_DIRECTION_REQUEST = 0x10;
+constexpr u8 JOYPAD_BUTTON_REQUEST = 0x20;
+
+constexpr u64 CPU_PIPELINE_SIZE = 12;
 
 struct Cartridge
 {
@@ -119,7 +121,6 @@ struct PPU
 
     bool draw_frame;
     bool draw_tile_buffer;
-    bool draw_background_buffer;
 };
 
 struct Timers
@@ -164,7 +165,6 @@ struct CPU
     u8 z;
 
     u8 tick;
-    u8 remaining_cycles;
     bool interrupt_master_enable;
     bool halted;
     bool extended;
@@ -175,7 +175,21 @@ struct CPU
         EXECUTE_PIPELINE
     } state;
 
-    std::queue<std::function<void(CPU*,Memory_Bus*)>> pipeline;
+    struct Pipeline
+    {
+        
+        std::function<void(CPU*,Memory_Bus*)> queue[CPU_PIPELINE_SIZE];
+        u64 pos;
+        u64 next_insert;
+
+        void push_back(std::function<void(CPU*,Memory_Bus*)> item);
+        std::function<void(CPU*,Memory_Bus*)> front();
+        void pop_front();
+        bool empty();
+    };
+
+    // std::deque<std::function<void(CPU*,Memory_Bus*)>> pipeline;
+    Pipeline pipeline;
 };
 
 void perform_interrupt(Memory_Bus *memory_bus, u8 flag);
